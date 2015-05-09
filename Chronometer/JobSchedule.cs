@@ -66,19 +66,75 @@ namespace Chronometer
 			return trialDate;
 		}
 
+		/// <summary>
+		/// Throws an exception if parameters form an invalid time.
+		/// </summary>
+		/// <param name="hour"></param>
+		/// <param name="minute"></param>
+		/// <param name="second"></param>
+		/// <exception cref="ArgumentOutOfRangeException">Thrown if invalid.</exception>
+		public static void ValidateTime(int hour, int minute, int second)
+		{
+			if (!IsValidTime(hour, minute, second))
+			{
+				if (!IsValidHour(hour))
+				{
+					throw new ArgumentOutOfRangeException("hour", hour, "Invalid hour.");
+				}
+				else if (!IsValidMinute(minute))
+				{
+					throw new ArgumentOutOfRangeException("minute", minute, "Invalid minute.");
+				}
+				else if (!IsValidSecond(second))
+				{
+					throw new ArgumentOutOfRangeException("second", second, "Invalid second.");
+				}
+			}
+		}
+
+		/// <summary>
+		/// Throws an exception if parameters form an invalid date. 
+		/// </summary>
+		/// <param name="year"></param>
+		/// <param name="month"></param>
+		/// <param name="day"></param>
+		/// <exception cref="ArgumentOutOfRangeException">Thrown if invalid.</exception>
+		public static void ValidateDate(int year, int month, int day)
+		{
+			new DateTime(year, month, day);
+		}
+
+		public static bool IsValidTime(int hour, int minute, int second)
+		{
+			return IsValidHour(hour) && IsValidMinute(minute) && IsValidSecond(second);
+		}
+
+		public static bool IsValidDate(int year, int month, int day)
+		{
+			try
+			{
+				var date = new DateTime(year, month, day);
+			}
+			catch (ArgumentOutOfRangeException)
+			{
+				return false;
+			}
+			return true;
+		}
+
 		public static bool IsValidHour(int hour)
 		{
-			return hour > 0 && hour < 24;
+			return hour >= 0 && hour < 24;
 		}
 
 		public static bool IsValidMinute(int minute)
 		{
-			return minute > 0 && minute < 60;
+			return minute >= 0 && minute < 60;
 		}
 
 		public static bool IsValidSecond(int second)
 		{
-			return second > 0 && second < 60;
+			return second >= 0 && second < 60;
 		}
 	}
 
@@ -91,6 +147,7 @@ namespace Chronometer
 
 		public DailyTime(int hour, int minute, int second)
 		{
+			TimeUtility.ValidateTime(hour, minute, second);
 			this.Hour = hour;
 			this.Minute = minute;
 			this.Second = second;
@@ -98,6 +155,7 @@ namespace Chronometer
 
 		public DailyTime(TimeSpan timestamp)
 		{
+			TimeUtility.ValidateTime(timestamp.Hours, timestamp.Minutes, timestamp.Seconds);
 			this.Hour = timestamp.Hours;
 			this.Minute = timestamp.Minutes;
 			this.Second = timestamp.Seconds;
@@ -138,6 +196,11 @@ namespace Chronometer
 			var typed = (DailyTime)other;
 			return ((IComparable)this.AsTuple()).CompareTo(typed.AsTuple());
 		}
+
+		public override string ToString()
+		{
+			return (new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, DateTime.UtcNow.Day, this.Hour, this.Minute, this.Second)).ToShortTimeString();
+		}
 	}
 
 	[Serializable]
@@ -150,6 +213,7 @@ namespace Chronometer
 
 		public WeekdayTime(DayOfWeek dayOfWeek, int hour, int minute, int second)
 		{
+			TimeUtility.ValidateTime(hour, minute, second);
 			this.DayOfWeek = dayOfWeek;
 			this.Hour = hour;
 			this.Minute = minute;
@@ -191,6 +255,14 @@ namespace Chronometer
 			var typed = (WeekdayTime)other;
 			return ((IComparable)this.AsTuple()).CompareTo(typed.AsTuple());
 		}
+
+		public override string ToString()
+		{
+			var dayString = this.DayOfWeek.ToString();
+			var timeString = (new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, DateTime.UtcNow.Day, this.Hour, this.Minute, this.Second)).ToShortTimeString();
+			
+			return String.Format("{0}, at {1}", dayString, timeString);
+		}
 	}
 
 	[Serializable]
@@ -203,6 +275,7 @@ namespace Chronometer
 
 		public DayOfMonthTime(int day, int hour, int minute, int second)
 		{
+			TimeUtility.ValidateTime(hour, minute, second);
 			this.Day = day;
 			this.Hour = hour;
 			this.Minute = minute;
@@ -244,6 +317,29 @@ namespace Chronometer
 			var typed = (DayOfMonthTime)other;
 			return ((IComparable)this.AsTuple()).CompareTo(typed.AsTuple());
 		}
+
+		public override string ToString()
+		{
+			var timeString = (new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, DateTime.UtcNow.Day, this.Hour, this.Minute, this.Second)).ToShortTimeString();
+
+			if (this.Day == 1)
+			{
+				return String.Format("On the 1st, at {0}", timeString);
+			}
+			else if (this.Day == 2)
+			{
+				return String.Format("On the 2nd, at {0}", timeString);
+			}
+			else if (this.Day == 3)
+			{
+				return String.Format("On the 3rd, at {0}", timeString);
+			}
+			else
+			{
+				var dayString = this.Day.ToString();
+				return String.Format("On the {0}th, at {1}", dayString, timeString);
+			}
+		}
 	}
 
 	[Serializable]
@@ -283,7 +379,8 @@ namespace Chronometer
 			return null;
 		}
 	}
-
+	
+	[Serializable]
 	public class IntervalJobSchedule : JobSchedule
 	{
 		public IntervalJobSchedule EveryHour()
@@ -338,55 +435,50 @@ namespace Chronometer
 
 		public override DateTime? GetNextRunTime(DateTime? lastRunTime = default(DateTime?))
 		{
+			if (this._every == null)
+			{
+				return null;
+			}
 
 			if (lastRunTime == null)
 			{
-				if (this._every != null) //interval mode
+                if (this._delay != null)
 				{
-					if (this._delay != null)
-					{
-						return DateTime.UtcNow.Add(this._delay.Value);
-					}
-					else if (this._startTime != null)
-					{
-						return TimeUtility.CreateDailyDueTime(this._startTime.Value);
-					}
-					else
-					{
-						return DateTime.UtcNow.Add(this._every.Value);
-					}
+					return DateTime.UtcNow.Add(this._delay.Value);
+				}
+				else if (this._startTime != null)
+				{
+					return TimeUtility.CreateDailyDueTime(this._startTime.Value);
+				}
+				else
+				{
+					return DateTime.UtcNow.Add(this._every.Value);
 				}
 			}
 			else
 			{
-				if (this._every != null) //interval mode
+				var next = lastRunTime.Value.Add(this._every.Value);
+				if (this._stopTime != null)
 				{
-					var next = lastRunTime.Value.Add(this._every.Value);
-					if (this._stopTime != null)
-					{
-						var stopTimeAbsolute = TimeUtility.CreateDailyDueTime(this._stopTime.Value);
-						if (next < stopTimeAbsolute)
-						{
-							return next;
-						}
-						else
-						{
-							return null;
-						}
-					}
-					else
+					var stopTimeAbsolute = TimeUtility.CreateDailyDueTime(this._stopTime.Value);
+					if (next < stopTimeAbsolute)
 					{
 						return next;
 					}
+					else
+					{
+						return null;
+					}
 				}
-				else //absolute mode
+				else
 				{
-					return this._nextAbsoluteDueTime();
+					return next;
 				}
-			}
+			}	
 		}
 	}
 
+	[Serializable]
 	public class AbsoluteJobSchedule : JobSchedule
 	{
 		//absolute data
@@ -495,8 +587,14 @@ namespace Chronometer
 			_monthlyDueTimes.Add(new DayOfMonthTime(day, hour, minute, second));
 			return this;
 		}
+
+		public override DateTime? GetNextRunTime(DateTime? lastRunTime = default(DateTime?))
+		{
+			return _nextAbsoluteDueTime();
+        }
 	}
 
+	[Serializable]
 	public class OnDemandJobSchedule : JobSchedule
 	{
 		public OnDemandJobSchedule() : base() { }

@@ -1,3 +1,4 @@
+[Pp]ackages/
 [Pp]recompile/
 [Oo]bj/
 [Bb]in/
@@ -16,6 +17,7 @@ _Resharper.*
 *.resharper
 *.ide
 [Tt]humbs.db
+
 
 # mac os x index files
 *.DS_Store

@@ -162,7 +162,7 @@ namespace Chronometer
 			var schedule = job.GetSchedule();
 			_jobSchedules.TryAdd(job.Id, schedule);
 			_runCounts.TryAdd(job.Id, 0);
-			_nextRunTimes.TryAdd(job.Id, JobSchedule.GetNextRunTime(schedule));
+			_nextRunTimes.TryAdd(job.Id, schedule.GetNextRunTime());
 
 			Trace.Current.WriteFormat("Job Manager has loaded job '{0}'", job.Id);
 		}
@@ -195,7 +195,7 @@ namespace Chronometer
 				var schedule = job.GetSchedule();
 				_jobSchedules.TryAdd(job.Id, schedule);
 				if (job.ShouldTrackRunCount) { _runCounts.TryAdd(job.Id, 0); }
-				_nextRunTimes.TryAdd(job.Id, JobSchedule.GetNextRunTime(schedule));
+				_nextRunTimes.TryAdd(job.Id, schedule.GetNextRunTime());
 			}
 
 			_heartbeat = new Timer(new TimerCallback(HeartBeat), null, HEARTBEAT_INTERVAL_MSEC, HEARTBEAT_INTERVAL_MSEC);
@@ -251,7 +251,7 @@ namespace Chronometer
 					var timestamp = DateTime.Now;
 					_lastRunTimes.AddOrUpdate(jobId, timestamp, (str, old) => timestamp);
 					var schedule = _jobSchedules[jobId];
-					var nextRunTime = JobSchedule.GetNextRunTime(schedule, timestamp);
+					var nextRunTime = schedule.GetNextRunTime(timestamp);
 					_nextRunTimes.AddOrUpdate(jobId, nextRunTime, (str, old) => nextRunTime);
 				}
 			}
