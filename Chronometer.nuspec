@@ -1,0 +1,33 @@
+<?xml version="1.0"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2010/07/nuspec.xsd">
+  <metadata schemaVersion="2">
+    <id>Chronometer</id>
+    <version>0.5.0</version>
+    <authors>Will Charczuk</authors>
+    <owners>Will Charczuk</owners>
+    <iconUrl></iconUrl>
+    <projectUrl>https://github.com/wcharczuk/chronometer</projectUrl>
+    <licenseUrl>https://github.com/wcharczuk/chronometer/master/LICENSE.md</licenseUrl>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <summary>Extensible background task runner and job scheduler for C#.</summary>
+    <description>Extensible background task runner and job scheduler for C#. NOTE: In beta API's subject to breaking changes.</description>
+    <releaseNotes>
+      * 0.5.0         - Initial Beta Release.
+    </releaseNotes>
+    <copyright>Copyright Will Charczuk, 2015</copyright>
+    <tags>job task background schedule scheduler</tags>
+    <frameworkAssemblies>
+      <frameworkAssembly assemblyName="System.Core"/>
+      <frameworkAssembly assemblyName="System"/>
+      <frameworkAssembly assemblyName="System.Data"/>
+      <frameworkAssembly assemblyName="Microsoft.CSharp" targetFramework=".NETFramework4.0-Client, .NETFramework4.0" />
+    </frameworkAssemblies>
+    <dependencies>
+    </dependencies>
+  </metadata>
+    <files>
+        <file src="Chronometer\bin\Release\Chronometer.dll" target="lib\net45" />
+        <file src="Chronometer\bin\Release\Chronometer.pdb" target="lib\net45" />
+        <file src="Chronometer\bin\Release\Chronometer.xml" target="lib\net45" />
+    </files>
+</package>
