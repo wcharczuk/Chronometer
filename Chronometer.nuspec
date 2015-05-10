@@ -4,8 +4,7 @@
     <id>Chronometer</id>
     <version>0.5.0</version>
     <authors>Will Charczuk</authors>
-    <owners>Will Charczuk</owners>
-    <iconUrl></iconUrl>
+	<owners>Will Charczuk</owners>    
     <projectUrl>https://github.com/wcharczuk/chronometer</projectUrl>
     <licenseUrl>https://github.com/wcharczuk/chronometer/master/LICENSE.md</licenseUrl>
     <requireLicenseAcceptance>false</requireLicenseAcceptance>
