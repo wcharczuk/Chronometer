@@ -5,6 +5,7 @@
 [Dd]ebug*/
 [Rr]elease*/
 [Tt]est Results*/
+[Tt]estResults*/
 *.mdf
 *.ldf
 *.user
