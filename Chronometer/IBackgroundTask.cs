@@ -10,7 +10,9 @@ namespace Chronometer
 	public interface IBackgroundTask
 	{
 		String Id { get; }
+
 		Int32? TimeoutMilliseconds { get; }
+
 		void Execute(CancellationToken cancellationToken);
 	}
 }

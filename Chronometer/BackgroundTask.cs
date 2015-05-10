@@ -13,6 +13,8 @@ namespace Chronometer
 	[Serializable]
 	public class BackgroundTask : IBackgroundTask
 	{
+		public const int TIMEOUT_MSEC = 60 * 60 * 1000;
+
 		public BackgroundTask() { }
 
 		public BackgroundTask(Action<CancellationToken> operation) : this()
@@ -24,7 +26,13 @@ namespace Chronometer
 		public delegate void BackgroundTaskEvent(object sender, EventArgs e);
 
 		public virtual String Id { get; set; }
-		public virtual Int32? TimeoutMilliseconds { get; set; }
+
+		private int? _timeoutMilliseconds = null;
+		public virtual Int32? TimeoutMilliseconds
+		{
+			get { return this._timeoutMilliseconds ?? TIMEOUT_MSEC; }
+			set { this._timeoutMilliseconds = value; }
+		}
 
 		/// <summary>
 		/// The operation is what gets called by the Background Task Runner.

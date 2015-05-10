@@ -18,12 +18,7 @@ namespace Chronometer
 
 		public const int HEARTBEAT_INTERVAL_MSEC = 5000;
 		public const int HIGH_PRECISION_HEARTBEAT_INTERVAL_MSEC = 50;
-
-		/// <summary>
-		/// The default timeout is one (1) hour.
-		/// </summary>
-		public const int TIMEOUT_MSEC = 60 * 60 * 1000;
-
+		
 		public enum State
 		{
 			Off = 0,
@@ -372,7 +367,7 @@ namespace Chronometer
 		/// Force a job to run.
 		/// </summary>
 		/// <param name="jobId"></param>
-		public void RunJobById(String jobId)
+		public void RunJobd(String jobId)
 		{
 			if (_jobs.ContainsKey(jobId))
 			{
@@ -458,7 +453,7 @@ namespace Chronometer
 		/// </summary>
 		/// <param name="jobId"></param>
 		/// <returns></returns>
-		public Boolean HasJob(String jobId)
+		public Boolean JobIsLoaded(String jobId)
 		{
 			return _jobs.ContainsKey(jobId);
 		}

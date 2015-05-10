@@ -11,9 +11,16 @@ namespace Chronometer
 	/// </summary>
 	public abstract class Job : IBackgroundTask
 	{
+		public const int TIMEOUT_MSEC = 60 * 60 * 1000;
+
 		public abstract String Id { get; }
 
-		public virtual Int32? TimeoutMilliseconds { get; set; }
+		private int? _timeoutMilliseconds = null;
+		public virtual Int32? TimeoutMilliseconds
+		{
+			get { return this._timeoutMilliseconds ?? TIMEOUT_MSEC; }
+			set { this._timeoutMilliseconds = value; }
+		}
 
 		public abstract void ExecuteImpl(CancellationToken token);
 
