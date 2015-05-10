@@ -546,7 +546,7 @@ namespace Chronometer
 		{
 			foreach (var job in _jobs.Values)
 			{
-				if (_nextRunTimes[job.Id] - DateTime.Now < TimeSpan.FromMilliseconds(HEARTBEAT_INTERVAL_MSEC))
+				if (_nextRunTimes[job.Id] < DateTime.Now)
 				{
 					RunJobById(job.Id);
 				}
