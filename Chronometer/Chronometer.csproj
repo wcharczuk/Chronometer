@@ -48,8 +48,10 @@
     <Compile Include="JobSchedule.cs" />
     <Compile Include="JobState.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="StatusModels\IBackgroundTaskInstanceStatus.cs" />
     <Compile Include="Utility\ReflectionHelper.cs" />
     <Compile Include="Trace.cs" />
+    <Compile Include="Utility\Threading.cs" />
     <Compile Include="Utility\Time.cs" />
     <Compile Include="StatusModels\BackgroundTaskStatus.cs" />
     <Compile Include="StatusModels\JobInstanceStatus.cs" />

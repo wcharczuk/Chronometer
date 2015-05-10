@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace Chronometer
 {
-	public class Trace
+	public class Trace : IDisposable
 	{
 		private static object _init_lock = new object();
 		private static Trace _current = null;
@@ -52,21 +52,32 @@ namespace Chronometer
 			}
 		}
 
-		public void InitializeWithPaths(String info_output_path, String error_file_path)
+		public void InitializeWithPaths(String info_file_path = null, String error_file_path = null)
 		{
+			if (info_file_path.Equals(error_file_path))
+			{
+				throw new ArgumentException("`info_output_path` and `error_file_path` must be different!");
+			}
+
 			lock (_init_lock)
 			{
-				var info_stream = File.Open(info_output_path, FileMode.Append, FileAccess.Write, FileShare.Read);
-				var error_stream = File.Open(error_file_path, FileMode.Append, FileAccess.Write, FileShare.Read);
+				if (!String.IsNullOrWhiteSpace(info_file_path))
+				{
+					var info_stream = File.Open(info_file_path, FileMode.Append, FileAccess.Write, FileShare.ReadWrite);
+					_info_stream = new StreamWriter(info_stream);
+				}
 
-				_info_stream = new StreamWriter(info_stream);
-				_error_stream = new StreamWriter(error_stream);
+				if (!String.IsNullOrWhiteSpace(error_file_path))
+				{
+					var error_stream = File.Open(error_file_path, FileMode.Append, FileAccess.Write, FileShare.ReadWrite);
+					_error_stream = new StreamWriter(error_stream);
+				}
 			}
 		}
 
 		private object _write_lock = new object();
 
-		private string _trace_preamble()
+		protected virtual string _trace_preamble()
 		{
 			return String.Format("{0} Chronometer :: ", DateTime.UtcNow.ToString("yyyy/MM/dd HH:mm:ss"));
         }
@@ -115,6 +126,33 @@ namespace Chronometer
 				{
 					_error_stream.WriteLine(string.Format(_trace_preamble() + message_format, tokens));
 					_error_stream.Flush();
+				}
+			}
+		}
+
+		public void Dispose()
+		{
+			if (_info_stream != null)
+			{
+				lock(_init_lock)
+				{
+					if (_info_stream != null)
+					{
+						_info_stream.Dispose();
+						_info_stream = null;
+					}
+				}
+			}
+
+			if (_error_stream != null)
+			{
+				lock (_init_lock)
+				{
+					if (_error_stream != null)
+					{
+						_error_stream.Dispose();
+						_error_stream = null;
+                    }
 				}
 			}
 		}

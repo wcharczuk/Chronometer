@@ -17,6 +17,7 @@ namespace Chronometer
 
 		public BackgroundTask(Action<CancellationToken> operation) : this()
 		{
+			this.Id = System.Guid.NewGuid().ToString("N");
 			this.Operation = operation;
 		}
 

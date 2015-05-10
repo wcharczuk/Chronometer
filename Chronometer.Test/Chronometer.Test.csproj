@@ -50,8 +50,13 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="JobManager_Tests.cs" />
     <Compile Include="JobSchedule_Tests.cs" />
+    <Compile Include="Mocks\MockDailyJob.cs" />
+    <Compile Include="Mocks\MockHourlyJob.cs" />
+    <Compile Include="Mocks\MockOnDemandJob.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Trace_Tests.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />

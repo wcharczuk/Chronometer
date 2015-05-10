@@ -10,7 +10,7 @@ namespace Chronometer.Test
 	public class JobSchedule_Tests
 	{
 		[Fact]
-		public void TestValidation()
+		public void Validation()
 		{
 			Assert.True(TimeUtility.IsValidDate(2015, 02, 27));
 			Assert.False(TimeUtility.IsValidDate(2015, 02, 31));
@@ -27,14 +27,14 @@ namespace Chronometer.Test
 		}
 
 		[Fact]
-		public void TestAsInterval()
+		public void AsInterval()
 		{
 			var basic_schedule = JobSchedule.AsInterval().EveryMinutes(5);
 			Assert.NotNull(basic_schedule.GetNextRunTime());
 		}
 
 		[Fact]
-		public void TestAsIntervalWithLastRun()
+		public void AsIntervalWithLastRun()
 		{
 			var basic_schedule = JobSchedule.AsInterval().EveryMinutes(5);
 			var now = DateTime.UtcNow;
@@ -45,7 +45,7 @@ namespace Chronometer.Test
 		}
 
 		[Fact]
-		public void TestAsIntervalWithDelay()
+		public void AsIntervalWithDelay()
 		{
 			var basic_schedule_with_delay = JobSchedule.AsInterval().EveryHour().WithDelay(TimeSpan.FromMinutes(30));
 			var next = basic_schedule_with_delay.GetNextRunTime();
@@ -55,7 +55,7 @@ namespace Chronometer.Test
 		}
 
 		[Fact]
-		public void TestAsIntervalWithStartStop()
+		public void AsIntervalWithStartStop()
 		{
 			var basic_schedule = JobSchedule.AsInterval().EveryMinutes(5).WithRunPeriod(new DailyTime(12, 0, 0), new DailyTime(17, 0, 0));
 			Assert.NotNull(basic_schedule.GetNextRunTime());
@@ -68,7 +68,7 @@ namespace Chronometer.Test
 		}
 
 		[Fact]
-		public void TestAsAbsolute()
+		public void AsAbsolute()
 		{
 			var basic_schedule = JobSchedule.AsAbsolute().WithDailyTime(hour: 12, minute: 0, second: 0); //every day at noon
 			var noon = basic_schedule.GetNextRunTime();
@@ -100,12 +100,301 @@ namespace Chronometer.Test
 		}
 
 		[Fact]
-		public void TestOnDemand()
+		public void OnDemand()
 		{
 			var on_demand = JobSchedule.OnDemand();
 			var should_be_null = on_demand.GetNextRunTime();
 
 			Assert.Null(should_be_null);
 		}
-    }
+
+		[Fact]
+		public void DailyTime_Ctor()
+		{
+			var daily_time = new DailyTime(12, 2, 3);
+			Assert.Equal(12, daily_time.Hour);
+			Assert.Equal(2, daily_time.Minute);
+			Assert.Equal(3, daily_time.Second);
+		}
+
+		[Fact]
+		public void DailyTime_InvalidCtor()
+		{
+			var did_throw = false;
+			try
+			{
+				var daily_time = new DailyTime(64, 2, 3);
+			}
+			catch (ArgumentOutOfRangeException)
+			{
+				did_throw = true;
+			}
+
+			Assert.True(did_throw);
+		}
+
+		[Fact]
+		public void DailyTime_TimespanCtor()
+		{
+			var daily_time = new DailyTime(new TimeSpan(12, 1, 2));
+			Assert.Equal(12, daily_time.Hour);
+			Assert.Equal(1, daily_time.Minute);
+			Assert.Equal(2, daily_time.Second);
+		}
+
+		[Fact]
+		public void DailyTime_Equals()
+		{
+			var foo = new DailyTime(12, 12, 12);
+			var foobar = new DailyTime(12, 12, 12);
+			var bar = new DailyTime(12, 5, 5);
+
+			Assert.True(foo.Equals(foobar));
+			Assert.False(foo.Equals(bar));
+		}
+
+		[Fact]
+		public void DailyTime_HashCode()
+		{
+			var foo = new DailyTime(12, 12, 12);
+			var foobar = new DailyTime(12, 12, 12);
+			var bar = new DailyTime(5, 5, 5);
+
+			var set = new HashSet<DailyTime>();
+			set.Add(foo);
+			Assert.True(set.Contains(foobar));
+			Assert.False(set.Contains(bar));
+		}
+
+		[Fact]
+		public void DailyTime_CompareTo()
+		{
+			var zoo = new DailyTime(0, 0, 0);
+			var foo = new DailyTime(1, 1, 1);
+			var moo = new DailyTime(1, 1, 1);
+			var bar = new DailyTime(2, 2, 2);
+
+			Assert.True(foo.CompareTo(bar) == -1);
+			Assert.True(foo.CompareTo(moo) == 0);
+			Assert.True(foo.CompareTo(zoo) == 1);
+		}
+
+		[Fact]
+		public void DailyTime_CompareToInvalid()
+		{
+			var did_throw = false;
+			var zoo = new DailyTime(0, 0, 0);
+			var boo = new object();
+
+			try
+			{
+				zoo.CompareTo(boo);
+			}
+			catch (ArgumentException)
+			{
+				did_throw = true;
+			}
+			Assert.True(did_throw);
+		}
+
+		[Fact]
+		public void DailyTime_AsTuple()
+		{
+			var daily_time = new DailyTime(12, 2, 3);
+			var tuple = daily_time.AsTuple();
+			Assert.Equal(daily_time.Hour, tuple.Item1);
+			Assert.Equal(daily_time.Minute, tuple.Item2);
+			Assert.Equal(daily_time.Second, tuple.Item3);
+		}
+
+		[Fact]
+		public void WeeklyTime_Ctor()
+		{
+			var weekly_time = new WeeklyTime(DayOfWeek.Monday, 12, 2, 3);
+			Assert.Equal(DayOfWeek.Monday, weekly_time.DayOfWeek);
+			Assert.Equal(12, weekly_time.Hour);
+			Assert.Equal(2, weekly_time.Minute);
+			Assert.Equal(3, weekly_time.Second);
+		}
+
+		[Fact]
+		public void WeeklyTime_InvalidCtor()
+		{
+			var did_throw = false;
+			try
+			{
+				var weekly_time = new WeeklyTime(DayOfWeek.Monday, 64, 2, 3);
+			}
+			catch (ArgumentOutOfRangeException)
+			{
+				did_throw = true;
+			}
+
+			Assert.True(did_throw);
+		}
+
+		[Fact]
+		public void WeeklyTime_Equals()
+		{
+			var foo = new WeeklyTime(DayOfWeek.Monday, 12, 12, 12);
+			var foobar = new WeeklyTime(DayOfWeek.Monday, 12, 12, 12);
+			var bar = new WeeklyTime(DayOfWeek.Monday, 12, 5, 5);
+			var baz = new WeeklyTime(DayOfWeek.Tuesday, 12, 12, 12);
+
+			Assert.True(foo.Equals(foobar));
+			Assert.False(foo.Equals(bar));
+			Assert.False(foo.Equals(baz));
+		}
+
+		[Fact]
+		public void WeeklyTime_HashCode()
+		{
+			var foo = new WeeklyTime(DayOfWeek.Monday, 12, 12, 12);
+			var foobar = new WeeklyTime(DayOfWeek.Monday, 12, 12, 12);
+			var bar = new WeeklyTime(DayOfWeek.Monday, 5, 5, 5);
+
+			var set = new HashSet<WeeklyTime>();
+			set.Add(foo);
+			Assert.True(set.Contains(foobar));
+			Assert.False(set.Contains(bar));
+		}
+
+		[Fact]
+		public void WeeklyTime_CompareTo()
+		{
+			var zoo = new WeeklyTime(DayOfWeek.Monday, 0, 0, 0);
+			var foo = new WeeklyTime(DayOfWeek.Monday, 1, 1, 1);
+			var moo = new WeeklyTime(DayOfWeek.Monday, 1, 1, 1);
+			var bar = new WeeklyTime(DayOfWeek.Monday, 2, 2, 2);
+
+			Assert.True(foo.CompareTo(bar) == -1);
+			Assert.True(foo.CompareTo(moo) == 0);
+			Assert.True(foo.CompareTo(zoo) == 1);
+		}
+
+		[Fact]
+		public void WeeklyTime_CompareToInvalid()
+		{
+			var did_throw = false;
+			var zoo = new WeeklyTime(DayOfWeek.Monday, 0, 0, 0);
+			var boo = new object();
+
+			try
+			{
+				zoo.CompareTo(boo);
+			}
+			catch (ArgumentException)
+			{
+				did_throw = true;
+			}
+
+			Assert.True(did_throw);
+		}
+
+		[Fact]
+		public void WeeklyTime_AsTuple()
+		{
+			var weekly_time = new WeeklyTime(DayOfWeek.Monday, 12, 2, 3);
+			var tuple = weekly_time.AsTuple();
+			Assert.Equal(weekly_time.DayOfWeek, tuple.Item1);
+			Assert.Equal(weekly_time.Hour, tuple.Item2);
+			Assert.Equal(weekly_time.Minute, tuple.Item3);
+			Assert.Equal(weekly_time.Second, tuple.Item4);
+		}
+
+		[Fact]
+		public void MonthlyTime_Ctor()
+		{
+			var monthly_time = new MonthlyTime(15, 12, 2, 3);
+			Assert.Equal(15, monthly_time.Day);
+			Assert.Equal(12, monthly_time.Hour);
+			Assert.Equal(2, monthly_time.Minute);
+			Assert.Equal(3, monthly_time.Second);
+		}
+
+		[Fact]
+		public void MonthlyTime_InvalidCtor()
+		{
+			var did_throw = false;
+			try
+			{
+				var monthly_time = new MonthlyTime(99, 12, 2, 3);
+			}
+			catch (ArgumentOutOfRangeException)
+			{
+				did_throw = true;
+			}
+
+			Assert.True(did_throw);
+		}
+
+		[Fact]
+		public void MonthlyTime_Equals()
+		{
+			var foo = new MonthlyTime(15, 12, 12, 12);
+			var foobar = new MonthlyTime(15, 12, 12, 12);
+			var bar = new MonthlyTime(15, 12, 5, 5);
+			var baz = new MonthlyTime(10, 12, 12, 12);
+
+			Assert.True(foo.Equals(foobar));
+			Assert.False(foo.Equals(bar));
+			Assert.False(foo.Equals(baz));
+		}
+
+		[Fact]
+		public void MonthlyTime_HashCode()
+		{
+			var foo = new MonthlyTime(15, 12, 12, 12);
+			var foobar = new MonthlyTime(15, 12, 12, 12);
+			var bar = new MonthlyTime(15, 5, 5, 5);
+
+			var set = new HashSet<MonthlyTime>();
+			set.Add(foo);
+			Assert.True(set.Contains(foobar));
+			Assert.False(set.Contains(bar));
+		}
+
+		[Fact]
+		public void MonthlyTime_CompareTo()
+		{
+			var zoo = new MonthlyTime(15, 0, 0, 0);
+			var foo = new MonthlyTime(15, 1, 1, 1);
+			var moo = new MonthlyTime(15, 1, 1, 1);
+			var bar = new MonthlyTime(15, 2, 2, 2);
+
+			Assert.True(foo.CompareTo(bar) == -1);
+			Assert.True(foo.CompareTo(moo) == 0);
+			Assert.True(foo.CompareTo(zoo) == 1);
+		}
+
+		[Fact]
+		public void MonthlyTime_CompareToInvalid()
+		{
+			var did_throw = false;
+			var zoo = new MonthlyTime(15, 0, 0, 0);
+			var boo = new object();
+
+			try
+			{
+				zoo.CompareTo(boo);
+			}
+			catch (ArgumentException)
+			{
+				did_throw = true;
+			}
+
+			Assert.True(did_throw);
+		}
+
+		[Fact]
+		public void MonthlyTime_AsTuple()
+		{
+			var monthly_time = new MonthlyTime(15, 12, 2, 3);
+			var tuple = monthly_time.AsTuple();
+			Assert.Equal(monthly_time.Day, tuple.Item1);
+			Assert.Equal(monthly_time.Hour, tuple.Item2);
+			Assert.Equal(monthly_time.Minute, tuple.Item3);
+			Assert.Equal(monthly_time.Second, tuple.Item4);
+		}
+	}
 }

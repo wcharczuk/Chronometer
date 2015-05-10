@@ -12,6 +12,7 @@ namespace Chronometer.StatusModels
 		public JobManagerStatus()
 		{
 			Jobs = new List<JobInstanceStatus>();
+			RunningTasks = new List<BackgroundTaskStatus>();
 		}
 
 		public String Status { get; set; }
@@ -19,5 +20,7 @@ namespace Chronometer.StatusModels
 		public DateTime? RuningSince { get; set; }
 
 		public List<JobInstanceStatus> Jobs { get; set; }
+
+		public List<BackgroundTaskStatus> RunningTasks { get; set; }
 	}
 }

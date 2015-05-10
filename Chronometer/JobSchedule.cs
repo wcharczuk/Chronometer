@@ -10,7 +10,7 @@ namespace Chronometer
 	/// </summary>
 	public static class TimeUtility
 	{
-		public static DateTime CreateMonthlyDueTime(DayOfMonthTime monthlyTime)
+		public static DateTime CreateMonthlyDueTime(MonthlyTime monthlyTime)
 		{
 			var day = monthlyTime.Day;
 			var hour = monthlyTime.Hour;
@@ -28,7 +28,7 @@ namespace Chronometer
 			return trialDate;
 		}
 
-		public static DateTime CreateWeeklyDueTime(WeekdayTime weeklyTime)
+		public static DateTime CreateWeeklyDueTime(WeeklyTime weeklyTime)
 		{
 			var dayOfWeek = weeklyTime.DayOfWeek;
 
@@ -204,14 +204,14 @@ namespace Chronometer
 	}
 
 	[Serializable]
-	public struct WeekdayTime : IComparable
+	public struct WeeklyTime : IComparable
 	{
 		public DayOfWeek DayOfWeek;
 		public int Hour;
 		public int Minute;
 		public int Second;
 
-		public WeekdayTime(DayOfWeek dayOfWeek, int hour, int minute, int second)
+		public WeeklyTime(DayOfWeek dayOfWeek, int hour, int minute, int second)
 		{
 			TimeUtility.ValidateTime(hour, minute, second);
 			this.DayOfWeek = dayOfWeek;
@@ -234,12 +234,12 @@ namespace Chronometer
 		{
 			if (other == null) return false;
 
-			if (!(other is WeekdayTime))
+			if (!(other is WeeklyTime))
 			{
 				return false;
 			}
 
-			var typed = (WeekdayTime)other;
+			var typed = (WeeklyTime)other;
 			return this.DayOfWeek.Equals(typed.DayOfWeek) && this.Hour.Equals(typed.Hour) && this.Minute.Equals(typed.Minute) && this.Second.Equals(typed.Second);
 		}
 
@@ -247,12 +247,12 @@ namespace Chronometer
 		{
 			if (other == null) return 1;
 
-			if (!(other is WeekdayTime))
+			if (!(other is WeeklyTime))
 			{
 				throw new ArgumentException("Invalid comparison of DayOfMonthTime.");
 			}
 
-			var typed = (WeekdayTime)other;
+			var typed = (WeeklyTime)other;
 			return ((IComparable)this.AsTuple()).CompareTo(typed.AsTuple());
 		}
 
@@ -266,16 +266,18 @@ namespace Chronometer
 	}
 
 	[Serializable]
-	public struct DayOfMonthTime : IComparable
+	public struct MonthlyTime : IComparable
 	{
 		public int Day;
 		public int Hour;
 		public int Minute;
 		public int Second;
 
-		public DayOfMonthTime(int day, int hour, int minute, int second)
+		public MonthlyTime(int day, int hour, int minute, int second)
 		{
+			TimeUtility.ValidateDate(DateTime.UtcNow.Year, DateTime.UtcNow.Month, day);
 			TimeUtility.ValidateTime(hour, minute, second);
+
 			this.Day = day;
 			this.Hour = hour;
 			this.Minute = minute;
@@ -296,12 +298,12 @@ namespace Chronometer
 		{
 			if (other == null) return false;
 
-			if (!(other is DayOfMonthTime))
+			if (!(other is MonthlyTime))
 			{
 				return false;
 			}
 
-			var typed = (DayOfMonthTime)other;
+			var typed = (MonthlyTime)other;
 			return this.Day.Equals(typed.Day) && this.Hour.Equals(typed.Hour) && this.Minute.Equals(typed.Minute) && this.Second.Equals(typed.Second);
 		}
 
@@ -309,12 +311,12 @@ namespace Chronometer
 		{
 			if (other == null) return 1;
 
-			if (!(other is DayOfMonthTime))
+			if (!(other is MonthlyTime))
 			{
 				throw new ArgumentException("Invalid comparison of DayOfMonthTime.");
 			}
 
-			var typed = (DayOfMonthTime)other;
+			var typed = (MonthlyTime)other;
 			return ((IComparable)this.AsTuple()).CompareTo(typed.AsTuple());
 		}
 
@@ -482,8 +484,8 @@ namespace Chronometer
 	public class AbsoluteJobSchedule : JobSchedule
 	{
 		//absolute data
-		protected HashSet<DayOfMonthTime> _monthlyDueTimes = new HashSet<DayOfMonthTime>();
-		protected HashSet<WeekdayTime> _weeklyDueTimes = new HashSet<WeekdayTime>();
+		protected HashSet<MonthlyTime> _monthlyDueTimes = new HashSet<MonthlyTime>();
+		protected HashSet<WeeklyTime> _weeklyDueTimes = new HashSet<WeeklyTime>();
 		protected HashSet<DailyTime> _dailyDueTimes = new HashSet<DailyTime>();
 
 		protected DateTime? _nextMonthlyDueTime()
@@ -578,13 +580,13 @@ namespace Chronometer
 		/// <returns></returns>
 		public AbsoluteJobSchedule WithWeeklyTime(DayOfWeek dayOfWeek, int hour, int minute, int second)
 		{
-			_weeklyDueTimes.Add(new WeekdayTime(dayOfWeek, hour, minute, second));
+			_weeklyDueTimes.Add(new WeeklyTime(dayOfWeek, hour, minute, second));
 			return this;
 		}
 
 		public AbsoluteJobSchedule WithMonthlyTime(int day, int hour, int minute, int second)
 		{
-			_monthlyDueTimes.Add(new DayOfMonthTime(day, hour, minute, second));
+			_monthlyDueTimes.Add(new MonthlyTime(day, hour, minute, second));
 			return this;
 		}
 

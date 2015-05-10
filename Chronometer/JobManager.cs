@@ -17,6 +17,7 @@ namespace Chronometer
 		#region Constants
 
 		public const int HEARTBEAT_INTERVAL_MSEC = 5000;
+		public const int HIGH_PRECISION_HEARTBEAT_INTERVAL_MSEC = 50;
 
 		/// <summary>
 		/// The default timeout is one (1) hour.
@@ -28,25 +29,6 @@ namespace Chronometer
 			Off = 0,
 			Standby = 1,
 			Running = 2
-		}
-
-		#endregion
-
-		#region Heart Beat
-
-		private Timer _heartbeat = null;
-
-		private static void HeartBeat(object state)
-		{
-			try
-			{
-				JobManager.Current._runAllDueJobs();
-				JobManager.Current._killHangingJobs();
-			}
-			catch (Exception ex)
-			{
-				Trace.Current.WriteError(ex.ToString());
-			}
 		}
 
 		#endregion
@@ -74,10 +56,15 @@ namespace Chronometer
 		}
 		#endregion
 
+		#region .ctor()
+
 		public JobManager()
 		{
-			Initialize();
 		}
+
+		#endregion
+
+		#region Status
 
 		private State? _status = null;
 		public State RunningState
@@ -94,6 +81,88 @@ namespace Chronometer
 				_status = value;
 			}
 		}
+
+		public JobManagerStatus GetStatus()
+		{
+			var status = new JobManagerStatus();
+
+			status.Status = this.RunningState.ToString();
+			status.RuningSince = _runningSince;
+
+			foreach (var job in _jobs.Values)
+			{
+				var instanceStatus = new JobInstanceStatus();
+				instanceStatus.Id = job.Id;
+
+				if (_runningJobs.ContainsKey(job.Id))
+					instanceStatus.Status = JobInstanceStatus.JobStatus.Running;
+				else
+					instanceStatus.Status = JobInstanceStatus.JobStatus.Idle;
+
+				Int32 runCount = default(int);
+				if (_runCounts.TryGetValue(job.Id, out runCount))
+					instanceStatus.RunCount = runCount;
+
+				DateTime lastRun = default(DateTime);
+				if (_lastRunTimes.TryGetValue(job.Id, out lastRun))
+					instanceStatus.LastRun = lastRun;
+
+				DateTime? nextRun = null;
+				if (_nextRunTimes.TryGetValue(job.Id, out nextRun))
+					instanceStatus.NextRun = nextRun;
+
+				DateTime? runningSince = null;
+				if (_runningJobStartTimes.TryGetValue(job.Id, out runningSince))
+					instanceStatus.RunningSince = runningSince;
+
+				status.Jobs.Add(instanceStatus);
+			}
+
+			foreach (var runningJob in _runningJobs)
+			{
+				if (!_jobs.ContainsKey(runningJob.Key))
+				{
+					var asyncState = _runningJobs[runningJob.Key].AsyncState as JobState;
+					if (asyncState != null)
+					{
+						var task = asyncState.BackgroundTask as BackgroundTask;
+						var instanceStatus = new BackgroundTaskStatus(task);
+						status.RunningTasks.Add(instanceStatus);
+					}
+				}
+			}
+
+			return status;
+		}
+
+		#endregion
+
+		#region Heartbeat
+
+		private Timer _heartbeat = null;
+
+		private static void HeartBeat(object state)
+		{
+			try
+			{
+				var manager = state as JobManager;
+				manager._runAllDueJobs();
+				manager._killHangingJobs();
+			}
+			catch (Exception ex)
+			{
+				Trace.Current.WriteError(ex.ToString());
+			}
+		}
+
+		private bool _useHighPrecisionHeartbeat = false;
+
+		/// <summary>
+		/// Enable the high precision heartbeat. Default is 5000ms, high precision is 50ms.
+		/// </summary>
+		public Boolean EnableHighPrecisionHeartbeat { get { return _useHighPrecisionHeartbeat; } set { _useHighPrecisionHeartbeat = value; } }
+
+		#endregion
 
 		#region Private Storage
 
@@ -126,6 +195,7 @@ namespace Chronometer
 			_runningJobCancellationTokens = new ConcurrentDictionary<String, CancellationTokenSource>();
 			_runningJobStartTimes = new ConcurrentDictionary<String, DateTime?>();
 			_status = State.Off;
+			_useHighPrecisionHeartbeat = false;
 			Trace.Current.WriteFormat("Job Manager initialized.");
 		}
 
@@ -157,14 +227,37 @@ namespace Chronometer
 		public void LoadJob(Type jobType)
 		{
 			var job = ReflectionHelper.GetNewObject(jobType) as Job;
-			_jobs.TryAdd(job.Id, job);
+			this.LoadJobInstance(job);
+		}
 
-			var schedule = job.GetSchedule();
-			_jobSchedules.TryAdd(job.Id, schedule);
-			_runCounts.TryAdd(job.Id, 0);
-			_nextRunTimes.TryAdd(job.Id, schedule.GetNextRunTime());
+		/// <summary>
+		/// Loads an instance of a job.
+		/// </summary>
+		/// <param name="job"></param>
+		/// <exception cref="ArgumentNullException">If the job instance is null.</exception>
+		/// <exception cref="ArgumentException">If the job has already been loaded.</exception>
+		public void LoadJobInstance(Job job)
+		{
+			if (job == null)
+			{
+				throw new ArgumentNullException("job");
+			}
 
-			Trace.Current.WriteFormat("Job Manager has loaded job '{0}'", job.Id);
+			if (!_jobs.ContainsKey(job.Id))
+			{
+				_jobs.TryAdd(job.Id, job);
+
+				var schedule = job.GetSchedule();
+				_jobSchedules.TryAdd(job.Id, schedule);
+				_runCounts.TryAdd(job.Id, 0);
+				_nextRunTimes.TryAdd(job.Id, schedule.GetNextRunTime());
+
+				Trace.Current.WriteFormat("Job Manager has loaded job '{0}'", job.Id);
+			}
+			else
+			{
+				throw new ArgumentException(String.Format("Cannot load duplicate job: {0}", job.Id));
+			}
 		}
 
 		/// <summary>
@@ -175,13 +268,22 @@ namespace Chronometer
 		{
 			foreach (var jobId in _jobsByType(jobType))
 			{
-				CancelJob(jobId);
-				if (_jobs.Remove(jobId))
-				{
-					_jobSchedules.Remove(jobId);
-					_runCounts.Remove(jobId);
-					_nextRunTimes.Remove(jobId);
-				}
+				UnloadJob(jobId);
+			}
+		}
+
+		/// <summary>
+		/// Unload Job by Id.
+		/// </summary>
+		/// <param name="jobId"></param>
+		public void UnloadJob(String jobId)
+		{
+			CancelJob(jobId);
+			if (_jobs.Remove(jobId))
+			{
+				_jobSchedules.Remove(jobId);
+				_runCounts.Remove(jobId);
+				_nextRunTimes.Remove(jobId);
 			}
 		}
 
@@ -198,7 +300,14 @@ namespace Chronometer
 				_nextRunTimes.TryAdd(job.Id, schedule.GetNextRunTime());
 			}
 
-			_heartbeat = new Timer(new TimerCallback(HeartBeat), null, HEARTBEAT_INTERVAL_MSEC, HEARTBEAT_INTERVAL_MSEC);
+			if (this._useHighPrecisionHeartbeat)
+			{
+				_heartbeat = new Timer(new TimerCallback(HeartBeat), this, 0, HIGH_PRECISION_HEARTBEAT_INTERVAL_MSEC);
+			}
+			else
+			{
+				_heartbeat = new Timer(new TimerCallback(HeartBeat), this, 0, HEARTBEAT_INTERVAL_MSEC);
+			}
 			_runningSince = DateTime.Now;
 			RunningState = State.Running;
 
@@ -235,11 +344,34 @@ namespace Chronometer
 			Trace.Current.Write("Job Manager has entered Standby state.");
 		}
 
-		public Boolean HasJobId(String jobId)
+		/// <summary>
+		/// Dispose the job manager, stopping any running jobs and causing the manager to enter the `Off` state.
+		/// </summary>
+		public void Dispose()
 		{
-			return _jobs.ContainsKey(jobId);
+			RunningState = State.Off;
+			if (_runningJobs.Any())
+			{
+				foreach (var token in _runningJobCancellationTokens.Values)
+				{
+					token.Cancel();
+				}
+				_runningJobCancellationTokens.Clear();
+				_runningJobs.Clear();
+				_runningJobStartTimes.Clear();
+			}
+			if (_heartbeat != null)
+			{
+				_heartbeat.Change(Timeout.Infinite, Timeout.Infinite);
+				_heartbeat.Dispose();
+				_heartbeat = null;
+			}
 		}
 
+		/// <summary>
+		/// Force a job to run.
+		/// </summary>
+		/// <param name="jobId"></param>
 		public void RunJobById(String jobId)
 		{
 			if (_jobs.ContainsKey(jobId))
@@ -257,6 +389,10 @@ namespace Chronometer
 			}
 		}
 
+		/// <summary>
+		/// Run a background task.
+		/// </summary>
+		/// <param name="action"></param>
 		public void RunBackgroundTask(IBackgroundTask action)
 		{
 			var actionId = action.Id ?? System.Guid.NewGuid().ToString("N");
@@ -281,13 +417,17 @@ namespace Chronometer
 			}, state: asyncState, cancellationToken: token);
 
 			_runningJobCancellationTokens.AddOrUpdate(actionId, cancelationTokenSource, (str, cts) => { return cancelationTokenSource; });
-			jobTask.ContinueWith(OnTaskComplete);
+			jobTask.ContinueWith(_onTaskComplete);
 			jobTask.Start();
 
 			_runningJobs.AddOrUpdate(actionId, jobTask, (str, j) => { return jobTask; });
 			_runningJobStartTimes.AddOrUpdate(actionId, DateTime.Now, (str, dt) => { return DateTime.Now; });
 		}
 
+		/// <summary>
+		/// Cancel a job by id, also can cancel background tasks by their id.
+		/// </summary>
+		/// <param name="jobId"></param>
 		public void CancelJob(String jobId)
 		{
 			if (_runningJobs.ContainsKey(jobId))
@@ -313,7 +453,65 @@ namespace Chronometer
 			}
 		}
 
-		private void OnTaskComplete(Task task)
+		/// <summary>
+		/// Returns true if the given `jobId` is loaded.
+		/// </summary>
+		/// <param name="jobId"></param>
+		/// <returns></returns>
+		public Boolean HasJob(String jobId)
+		{
+			return _jobs.ContainsKey(jobId);
+		}
+
+		/// <summary>
+		/// Returns true if the given `jobId` is loaded and runnning.
+		/// </summary>
+		/// <param name="jobId"></param>
+		/// <returns></returns>
+		public Boolean JobIsRunning(String jobId)
+		{
+			return _runningJobs.ContainsKey(jobId);
+		}
+
+		/// <summary>
+		/// Determine how long a given job has been running for.
+		/// </summary>
+		/// <param name="jobId"></param>
+		/// <returns></returns>
+		public TimeSpan? GetRunningJobElapsed(String jobId)
+		{
+			if (_runningJobStartTimes.ContainsKey(jobId))
+			{
+				DateTime? startTime = null;
+				_runningJobStartTimes.TryGetValue(jobId, out startTime);
+				if (startTime != null)
+					return DateTime.Now - startTime.Value;
+				else
+					return null;
+			}
+			return null;
+		}
+
+		/// <summary>
+		/// Get the next runtime of a job.
+		/// </summary>
+		/// <param name="jobId"></param>
+		/// <returns></returns>
+		public DateTime? GetNextRunTime(String jobId)
+		{
+			if (_jobs.ContainsKey(jobId))
+			{
+				if (_nextRunTimes.ContainsKey(jobId))
+				{
+					return _nextRunTimes[jobId];
+				}
+			}
+			return null;
+		}
+
+		#region Private Helper Methods
+
+		private void _onTaskComplete(Task task)
 		{
 			try
 			{
@@ -401,95 +599,6 @@ namespace Chronometer
 			}
 		}
 
-		public TimeSpan? GetRunningJobElapsed(String jobId)
-		{
-			if (_runningJobStartTimes.ContainsKey(jobId))
-			{
-				DateTime? startTime = null;
-				_runningJobStartTimes.TryGetValue(jobId, out startTime);
-				if (startTime != null)
-					return DateTime.Now - startTime.Value;
-				else
-					return null;
-			}
-			return null;
-		}
-
-		public JobManagerStatus Status
-		{
-			get
-			{
-				var status = new JobManagerStatus();
-
-				status.Status = this.RunningState.ToString();
-				status.RuningSince = _runningSince;
-
-				foreach (var job in _jobs.Values)
-				{
-					var instanceStatus = new JobInstanceStatus();
-					instanceStatus.Id = job.Id;
-
-					if (_runningJobs.ContainsKey(job.Id))
-						instanceStatus.Status = JobInstanceStatus.JobStatus.Running;
-					else
-						instanceStatus.Status = JobInstanceStatus.JobStatus.Idle;
-
-					Int32 runCount = default(int);
-					if (_runCounts.TryGetValue(job.Id, out runCount))
-						instanceStatus.RunCount = runCount;
-
-					DateTime lastRun = default(DateTime);
-					if (_lastRunTimes.TryGetValue(job.Id, out lastRun))
-						instanceStatus.LastRun = lastRun;
-
-					DateTime? nextRun = null;
-					if (_nextRunTimes.TryGetValue(job.Id, out nextRun))
-						instanceStatus.NextRun = nextRun;
-
-					DateTime? runningSince = null;
-					if (_runningJobStartTimes.TryGetValue(job.Id, out runningSince))
-						instanceStatus.RunningSince = runningSince;
-
-					status.Jobs.Add(instanceStatus);
-				}
-				foreach (var runningJob in _runningJobs)
-				{
-					if (!_jobs.ContainsKey(runningJob.Key))
-					{
-						var instanceStatus = new JobInstanceStatus();
-						instanceStatus.Id = runningJob.Key;
-						instanceStatus.Status = JobInstanceStatus.JobStatus.Running;
-						instanceStatus.RunCount = null;
-						instanceStatus.LastRun = null;
-						instanceStatus.NextRun = null;
-						instanceStatus.RunningSince = _runningJobStartTimes[runningJob.Key];
-						status.Jobs.Add(instanceStatus);
-					}
-				}
-
-				return status;
-			}
-		}
-
-		public void Dispose()
-		{
-			RunningState = State.Off;
-			if (_runningJobs.Any())
-			{
-				foreach (var token in _runningJobCancellationTokens.Values)
-				{
-					token.Cancel();
-				}
-				_runningJobCancellationTokens.Clear();
-				_runningJobs.Clear();
-				_runningJobStartTimes.Clear();
-			}
-			if (_heartbeat != null)
-			{
-				_heartbeat.Change(Timeout.Infinite, Timeout.Infinite);
-				_heartbeat.Dispose();
-				_heartbeat = null;
-			}
-		}
+		#endregion
 	}
 }
