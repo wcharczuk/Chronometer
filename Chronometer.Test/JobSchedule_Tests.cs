@@ -27,6 +27,48 @@ namespace Chronometer.Test
 		}
 
 		[Fact]
+		public void EveryDayAtNoonExceptWeekends()
+		{
+			//15:00:00 UTC ~ 8:00:0 PDT
+			var alarm_schedule = JobSchedule.AsAbsolute()
+				.WithWeeklyTime(DayOfWeek.Monday, 15, 0, 0)
+				.WithWeeklyTime(DayOfWeek.Tuesday, 15, 0, 0)
+				.WithWeeklyTime(DayOfWeek.Wednesday, 15, 0, 0)
+				.WithWeeklyTime(DayOfWeek.Thursday, 15, 0, 0)
+				.WithWeeklyTime(DayOfWeek.Friday, 15, 0, 0);
+
+			var sunday_morning = new DateTime(2015, 5, 10, 18, 0, 0, DateTimeKind.Utc); //11am sunday ...
+			var next_on_sunday = alarm_schedule.GetNextRunTime(sunday_morning);
+			Assert.NotNull(next_on_sunday);
+			Assert.Equal(DayOfWeek.Monday, next_on_sunday.Value.DayOfWeek);
+			Assert.Equal(15, next_on_sunday.Value.Hour);
+
+			var monday_early_morning = new DateTime(2015, 5, 11, 14, 0, 0, DateTimeKind.Utc); //7am monday ...
+			var next_on_monday_early = alarm_schedule.GetNextRunTime(monday_early_morning);
+			Assert.NotNull(next_on_monday_early);
+			Assert.Equal(DayOfWeek.Monday, next_on_monday_early.Value.DayOfWeek);
+			Assert.Equal(15, next_on_monday_early.Value.Hour);
+
+			var monday_noon = new DateTime(2015, 5, 11, 19, 0, 0, DateTimeKind.Utc); //12pm monday ...
+			var next_on_monday_noon = alarm_schedule.GetNextRunTime(monday_noon);
+			Assert.NotNull(next_on_monday_early);
+			Assert.Equal(DayOfWeek.Tuesday, next_on_monday_noon.Value.DayOfWeek);
+			Assert.Equal(15, next_on_monday_noon.Value.Hour);
+
+			var tuesday_noon = new DateTime(2015, 5, 12, 19, 0, 0, DateTimeKind.Utc); //12pm monday ...
+			var next_on_tuesday_noon = alarm_schedule.GetNextRunTime(tuesday_noon);
+			Assert.NotNull(next_on_monday_early);
+			Assert.Equal(DayOfWeek.Wednesday, next_on_tuesday_noon.Value.DayOfWeek);
+			Assert.Equal(15, next_on_tuesday_noon.Value.Hour);
+
+			var friday_noon = new DateTime(2015, 5, 15, 19, 0, 0, DateTimeKind.Utc);  //12pm monday ...
+			var next_on_friday_noon = alarm_schedule.GetNextRunTime(friday_noon);
+			Assert.NotNull(next_on_monday_early);
+			Assert.Equal(DayOfWeek.Monday, next_on_friday_noon.Value.DayOfWeek);
+			Assert.Equal(15, next_on_friday_noon.Value.Hour);
+		}
+
+		[Fact]
 		public void AsInterval()
 		{
 			var basic_schedule = JobSchedule.AsInterval().EveryMinutes(5);

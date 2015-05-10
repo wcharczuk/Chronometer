@@ -16,7 +16,7 @@ namespace Chronometer
 	{
 		#region Constants
 
-		public const int HEARTBEAT_INTERVAL_MSEC = 5000;
+		public const int HEARTBEAT_INTERVAL_MSEC = 1000;
 		public const int HIGH_PRECISION_HEARTBEAT_INTERVAL_MSEC = 50;
 		
 		public enum State
@@ -367,7 +367,7 @@ namespace Chronometer
 		/// Force a job to run.
 		/// </summary>
 		/// <param name="jobId"></param>
-		public void RunJobd(String jobId)
+		public void RunJob(String jobId)
 		{
 			if (_jobs.ContainsKey(jobId))
 			{
@@ -541,9 +541,10 @@ namespace Chronometer
 		{
 			foreach (var job in _jobs.Values)
 			{
-				if (_nextRunTimes[job.Id] < DateTime.Now)
+				var nextRunTime = _nextRunTimes[job.Id];
+				if (nextRunTime < DateTime.UtcNow || (_nextRunTimes[job.Id] - DateTime.Now < TimeSpan.FromMilliseconds(HEARTBEAT_INTERVAL_MSEC)))
 				{
-					RunJobById(job.Id);
+					this.RunJob(job.Id);
 				}
 			}
 		}
@@ -586,10 +587,13 @@ namespace Chronometer
 					taskTimeout = asyncState.BackgroundTask.TimeoutMilliseconds;
 				}
 
-				var timeout = taskTimeout ?? TIMEOUT_MSEC;
-				if (DateTime.Now - kvp.Value > TimeSpan.FromMilliseconds(timeout))
+				var timeout = taskTimeout;
+				if (timeout != null)
 				{
-					_killHangingJob(kvp.Key);
+					if (DateTime.Now - kvp.Value > TimeSpan.FromMilliseconds(timeout.Value))
+					{
+						_killHangingJob(kvp.Key);
+					}
 				}
 			}
 		}

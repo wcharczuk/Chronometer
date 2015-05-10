@@ -53,6 +53,7 @@
     <Compile Include="JobManager_Tests.cs" />
     <Compile Include="JobSchedule_Tests.cs" />
     <Compile Include="Mocks\MockDailyJob.cs" />
+    <Compile Include="Mocks\MockFastJob.cs" />
     <Compile Include="Mocks\MockHourlyJob.cs" />
     <Compile Include="Mocks\MockOnDemandJob.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

@@ -27,7 +27,7 @@ namespace Chronometer.Test
 			{
 				manager.Initialize();
 				manager.LoadJobsFromNamespace("Chronometer.Test.Mocks", "Chronometer.Test.dll");
-				Assert.True(manager.HasJob("MockDaily"));
+				Assert.True(manager.JobIsLoaded("MockDaily"));
 			}
 		}
 
@@ -38,7 +38,7 @@ namespace Chronometer.Test
 			{
 				manager.Initialize();
 				manager.LoadJob(typeof(Mocks.MockDailyJob));
-				Assert.True(manager.HasJob("MockDaily"));
+				Assert.True(manager.JobIsLoaded("MockDaily"));
 			}
 		}
 
@@ -50,7 +50,7 @@ namespace Chronometer.Test
 				var job = new Mocks.MockDailyJob();
 				manager.Initialize();
 				manager.LoadJobInstance(job);
-				Assert.True(manager.HasJob("MockDaily"));
+				Assert.True(manager.JobIsLoaded("MockDaily"));
 			}
 		}
 
@@ -83,7 +83,7 @@ namespace Chronometer.Test
 				var job = new Mocks.MockDailyJob();
 				manager.Initialize();
 				manager.LoadJobInstance(job);
-				Assert.True(manager.HasJob("MockDaily"));
+				Assert.True(manager.JobIsLoaded("MockDaily"));
 				try
 				{
 					manager.LoadJobInstance(job);
@@ -104,9 +104,9 @@ namespace Chronometer.Test
 				var job = new Mocks.MockDailyJob();
 				manager.Initialize();
 				manager.LoadJob(typeof(Mocks.MockDailyJob));
-				Assert.True(manager.HasJob("MockDaily"));
+				Assert.True(manager.JobIsLoaded("MockDaily"));
 				manager.UnloadJob(typeof(Mocks.MockDailyJob));
-				Assert.False(manager.HasJob("MockDaily"));
+				Assert.False(manager.JobIsLoaded("MockDaily"));
 			}
 		}
 
@@ -118,10 +118,10 @@ namespace Chronometer.Test
 				var job = new Mocks.MockDailyJob();
 				manager.Initialize();
 				manager.LoadJobInstance(job);
-				Assert.True(manager.HasJob("MockDaily"));
+				Assert.True(manager.JobIsLoaded("MockDaily"));
 
 				manager.UnloadJob("MockDaily");
-				Assert.False(manager.HasJob("MockDaily"));
+				Assert.False(manager.JobIsLoaded("MockDaily"));
 			}
 		}
 
@@ -133,7 +133,7 @@ namespace Chronometer.Test
 				var mockJob = new Mocks.MockHourlyJob();
 				manager.Initialize();
 				manager.LoadJobInstance(mockJob);
-				Assert.True(manager.HasJob("MockHourly"));
+				Assert.True(manager.JobIsLoaded("MockHourly"));
 
 				manager.Start(); //should kick off this job ...
 				Assert.Equal(JobManager.State.Running, manager.RunningState);
@@ -180,7 +180,7 @@ namespace Chronometer.Test
 				var job = new Mocks.MockDailyJob();
 				manager.Initialize();
 				manager.LoadJobInstance(job);
-				Assert.True(manager.HasJob("MockDaily"));
+				Assert.True(manager.JobIsLoaded("MockDaily"));
 
 				var status = manager.GetStatus();
 				Assert.NotNull(status);
@@ -227,19 +227,19 @@ namespace Chronometer.Test
 		}
 
 		[Fact]
-		public void HasJobId()
+		public void JobIsLoadedId()
 		{
 			using (var manager = new JobManager())
 			{
 				var job = new Mocks.MockDailyJob();
 				manager.Initialize();
 				manager.LoadJobInstance(job);
-				Assert.True(manager.HasJob("MockDaily"));
+				Assert.True(manager.JobIsLoaded("MockDaily"));
 			}
 		}
 
 		[Fact]
-		public void RunJobById()
+		public void RunJob()
 		{
 			using (var manager = new JobManager())
 			{
@@ -250,8 +250,8 @@ namespace Chronometer.Test
 				});
 				manager.Initialize();
 				manager.LoadJobInstance(mockJob);
-				Assert.True(manager.HasJob("MockHourly"));
-				manager.RunJobById("MockHourly");
+				Assert.True(manager.JobIsLoaded("MockHourly"));
+				manager.RunJob("MockHourly");
 
 				var elapsed = Utility.Threading.BlockUntil(() => did_run, 500);
 				Assert.True(elapsed < 500);
@@ -379,6 +379,48 @@ namespace Chronometer.Test
 				Assert.True(task.DidTimeout);
 
 				Assert.False(manager.JobIsRunning(task.Id));
+			}
+		}
+
+		[Fact]
+		public void JobsShouldFireWithHeartbeat()
+		{
+			using (var manager = new JobManager())
+			{
+				var did_run = false;
+				manager.Initialize();
+				var job = new Mocks.MockFastJob(JobManager.HEARTBEAT_INTERVAL_MSEC, (token) =>
+				{
+					did_run = true;
+				});
+				manager.LoadJobInstance(job);
+				manager.EnableHighPrecisionHeartbeat = false;
+				manager.Start();
+
+				var elapsed = Utility.Threading.BlockUntil(() => did_run, JobManager.HEARTBEAT_INTERVAL_MSEC * 3);
+				Assert.True(did_run);
+				Assert.True(elapsed <= JobManager.HEARTBEAT_INTERVAL_MSEC * 2);
+			}
+		}
+
+		[Fact]
+		public void JobsShouldFireWithHighPrecisionHeartbeat()
+		{
+			using (var manager = new JobManager())
+			{
+				var did_run = false;
+				manager.Initialize();
+				var job = new Mocks.MockFastJob(JobManager.HIGH_PRECISION_HEARTBEAT_INTERVAL_MSEC, (token) =>
+				{
+					did_run = true;
+				});
+				manager.LoadJobInstance(job);
+				manager.EnableHighPrecisionHeartbeat = true;
+				manager.Start();
+
+				var elapsed = Utility.Threading.BlockUntil(() => did_run, JobManager.HIGH_PRECISION_HEARTBEAT_INTERVAL_MSEC * 3);
+				Assert.True(did_run);
+				Assert.True(elapsed <= JobManager.HIGH_PRECISION_HEARTBEAT_INTERVAL_MSEC * 2);
 			}
 		}
 	}

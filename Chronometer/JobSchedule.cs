@@ -10,25 +10,27 @@ namespace Chronometer
 	/// </summary>
 	public static class TimeUtility
 	{
-		public static DateTime CreateMonthlyDueTime(MonthlyTime monthlyTime)
+		public static DateTime CreateMonthlyDueTime(MonthlyTime monthlyTime, DateTime? lastRunTime = null)
 		{
 			var day = monthlyTime.Day;
 			var hour = monthlyTime.Hour;
 			var minute = monthlyTime.Minute;
 			var second = monthlyTime.Second;
 
-			var year = DateTime.UtcNow.Year;
-			var month = DateTime.UtcNow.Month;
+			var todayUtc = (lastRunTime ?? DateTime.UtcNow);
+
+			var year = todayUtc.Year;
+			var month = todayUtc.Month;
 
 			var trialDate = new DateTime(year, month, day, hour, minute, second, DateTimeKind.Utc);
-			if (trialDate < DateTime.UtcNow) //if date is in the past ...
+			if (trialDate < todayUtc) //if date is in the past ...
 			{
 				return trialDate.AddMonths(1);
 			}
 			return trialDate;
 		}
 
-		public static DateTime CreateWeeklyDueTime(WeeklyTime weeklyTime)
+		public static DateTime CreateWeeklyDueTime(WeeklyTime weeklyTime, DateTime? lastRunTime = null)
 		{
 			var dayOfWeek = weeklyTime.DayOfWeek;
 
@@ -36,29 +38,34 @@ namespace Chronometer
 			var minute = weeklyTime.Minute;
 			var second = weeklyTime.Second;
 
-			var year = DateTime.UtcNow.Year;
-			var month = DateTime.UtcNow.Month;
-			var day = DateTime.UtcNow.Day;
+			var todayUtc = (lastRunTime ?? DateTime.UtcNow);
 
-			var todayUtc = DateTime.UtcNow.Date;
 			var daysUntilDayOfWeek = ((int)dayOfWeek - (int)todayUtc.DayOfWeek + 7) % 7;
 			var nextDayOfWeek = todayUtc.AddDays(daysUntilDayOfWeek);
 
-			return new DateTime(nextDayOfWeek.Year, nextDayOfWeek.Month, nextDayOfWeek.Day, hour, minute, second, DateTimeKind.Utc);
+			var trial = new DateTime(nextDayOfWeek.Year, nextDayOfWeek.Month, nextDayOfWeek.Day, hour, minute, second, DateTimeKind.Utc);
+			if (trial < todayUtc)
+			{
+				return trial.AddDays(7);
+			}
+
+			return trial;
 		}
 
-		public static DateTime CreateDailyDueTime(DailyTime dailyTime)
+		public static DateTime CreateDailyDueTime(DailyTime dailyTime, DateTime? lastRunTime = null)
 		{
 			var hour = dailyTime.Hour;
 			var minute = dailyTime.Minute;
 			var second = dailyTime.Second;
 
-			var year = DateTime.UtcNow.Year;
-			var month = DateTime.UtcNow.Month;
-			var day = DateTime.UtcNow.Day;
+			var todayUtc = (lastRunTime ?? DateTime.UtcNow);
+
+			var year = todayUtc.Year;
+			var month = todayUtc.Month;
+			var day = todayUtc.Day;
 
 			var trialDate = new DateTime(year, month, day, hour, minute, second, DateTimeKind.Utc);
-			if (trialDate < DateTime.UtcNow)
+			if (trialDate < todayUtc)
 			{
 				return trialDate.AddDays(1);
 			}
@@ -382,12 +389,21 @@ namespace Chronometer
 		}
 	}
 	
+	/// <summary>
+	/// Job Schedule in the form of "Every x second/minutes/hours" etc.
+	/// </summary>
 	[Serializable]
 	public class IntervalJobSchedule : JobSchedule
 	{
 		public IntervalJobSchedule EveryHour()
 		{
 			this._every = TimeSpan.FromHours(1);
+			return this;
+		}
+
+		public IntervalJobSchedule EveryHours(int hours)
+		{
+			this._every = TimeSpan.FromHours(hours);
 			return this;
 		}
 
@@ -403,12 +419,48 @@ namespace Chronometer
 			return this;
 		}
 
-		public IntervalJobSchedule EveryHours(int hours)
+		/// <summary>
+		/// Run the job every second.
+		/// </summary>
+		/// <returns></returns>
+		public IntervalJobSchedule EverySecond()
 		{
-			this._every = TimeSpan.FromHours(hours);
+			this._every = TimeSpan.FromSeconds(1);
 			return this;
 		}
 
+		/// <summary>
+		/// Run the job every <paramref name="seconds"/> seconds.
+		/// </summary>
+		/// <param name="seconds"></param>
+		/// <returns></returns>
+		public IntervalJobSchedule EverySeconds(int seconds)
+		{
+			this._every = TimeSpan.FromSeconds(seconds);
+			return this;
+		}
+
+		/// <summary>
+		/// Total manual control over the interval.
+		/// </summary>
+		/// <param name="timespan"></param>
+		/// <exception cref="ArgumentException">If the timespan is too small (less than 50ms).</exception>
+		/// <returns>Self</returns>
+		public IntervalJobSchedule Every(TimeSpan timespan)
+		{
+			if (timespan.TotalMilliseconds < JobManager.HIGH_PRECISION_HEARTBEAT_INTERVAL_MSEC)
+			{
+				throw new ArgumentException("Interval cannot be smaller than the high precision heartbeat interval.", "timespan");
+			}
+			this._every = timespan;
+			return this;
+		}
+
+		/// <summary>
+		/// Delay job start by the timespan.
+		/// </summary>
+		/// <param name="delay"></param>
+		/// <returns></returns>
 		public IntervalJobSchedule WithDelay(TimeSpan delay)
 		{
 			this._delay = delay;
@@ -418,8 +470,8 @@ namespace Chronometer
 		/// <summary>
 		/// Only run the job between the specified start and end times.
 		/// </summary>
-		/// <param name="start_time"></param>
-		/// <param name="stop_time"></param>
+		/// <param name="from"></param>
+		/// <param name="to"></param>
 		/// <remarks>We use timespans to represent </remarks>
 		/// <returns></returns>
 		public IntervalJobSchedule WithRunPeriod(DailyTime from, DailyTime to)
@@ -430,11 +482,16 @@ namespace Chronometer
 		}
 
 		//interval data
-		protected TimeSpan? _delay = null;
-		protected TimeSpan? _every = null;
-		protected DailyTime? _startTime = null;
-		protected DailyTime? _stopTime = null;
+		private TimeSpan? _delay = null;
+		private TimeSpan? _every = null;
+		private DailyTime? _startTime = null;
+		private DailyTime? _stopTime = null;
 
+		/// <summary>
+		/// Get the next runtime.
+		/// </summary>
+		/// <param name="lastRunTime"></param>
+		/// <returns></returns>
 		public override DateTime? GetNextRunTime(DateTime? lastRunTime = default(DateTime?))
 		{
 			if (this._every == null)
@@ -488,14 +545,14 @@ namespace Chronometer
 		protected HashSet<WeeklyTime> _weeklyDueTimes = new HashSet<WeeklyTime>();
 		protected HashSet<DailyTime> _dailyDueTimes = new HashSet<DailyTime>();
 
-		protected DateTime? _nextMonthlyDueTime()
+		protected DateTime? _nextMonthlyDueTime(DateTime? lastRunTime = null)
 		{
 			if (_monthlyDueTimes.Any())
 			{
 				var nextTimes = new List<DateTime>();
 				foreach (var monthlyTime in _monthlyDueTimes)
 				{
-					nextTimes.Add(TimeUtility.CreateMonthlyDueTime(monthlyTime));
+					nextTimes.Add(TimeUtility.CreateMonthlyDueTime(monthlyTime, lastRunTime));
 				}
 
 				return nextTimes.OrderBy(_ => _).First();
@@ -503,50 +560,50 @@ namespace Chronometer
 			return null;
 		}
 
-		protected DateTime? _nextWeeklyDueTime()
+		protected DateTime? _nextWeeklyDueTime(DateTime? lastRunTime = null)
 		{
 			if (_weeklyDueTimes.Any())
 			{
 				var nextTimes = new List<DateTime>();
 				foreach (var weeklyTime in _weeklyDueTimes)
 				{
-					nextTimes.Add(TimeUtility.CreateWeeklyDueTime(weeklyTime));
+					nextTimes.Add(TimeUtility.CreateWeeklyDueTime(weeklyTime, lastRunTime));
 				}
 				return nextTimes.OrderBy(_ => _).First();
 			}
 			return null;
 		}
 
-		protected DateTime? _nextDailyDueTime()
+		protected DateTime? _nextDailyDueTime(DateTime? lastRunTime = null)
 		{
 			if (_dailyDueTimes.Any())
 			{
 				var nextTimes = new List<DateTime>();
 				foreach (var dailyTime in _dailyDueTimes)
 				{
-					nextTimes.Add(TimeUtility.CreateDailyDueTime(dailyTime));
+					nextTimes.Add(TimeUtility.CreateDailyDueTime(dailyTime, lastRunTime));
 				}
 				return nextTimes.OrderBy(_ => _).First();
 			}
 			return null;
 		}
 
-		protected DateTime? _nextAbsoluteDueTime()
+		protected DateTime? _nextAbsoluteDueTime(DateTime? lastRunTime = null)
 		{
 			var dueTimes = new List<DateTime>();
-			var monthly = _nextMonthlyDueTime();
+			var monthly = _nextMonthlyDueTime(lastRunTime);
 			if (monthly != null)
 			{
 				dueTimes.Add(monthly.Value);
 			}
 
-			var weekly = _nextWeeklyDueTime();
+			var weekly = _nextWeeklyDueTime(lastRunTime);
 			if (weekly != null)
 			{
 				dueTimes.Add(weekly.Value);
 			}
 
-			var daily = _nextDailyDueTime();
+			var daily = _nextDailyDueTime(lastRunTime);
 			if (daily != null)
 			{
 				dueTimes.Add(daily.Value);
@@ -590,9 +647,9 @@ namespace Chronometer
 			return this;
 		}
 
-		public override DateTime? GetNextRunTime(DateTime? lastRunTime = default(DateTime?))
+		public override DateTime? GetNextRunTime(DateTime? lastRunTime = null)
 		{
-			return _nextAbsoluteDueTime();
+			return _nextAbsoluteDueTime(lastRunTime);
         }
 	}
 
