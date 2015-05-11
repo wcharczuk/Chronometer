@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading;
@@ -410,7 +411,7 @@ namespace Chronometer.Test
 			{
 				var did_run = false;
 				manager.Initialize();
-				var job = new Mocks.MockFastJob(JobManager.HIGH_PRECISION_HEARTBEAT_INTERVAL_MSEC, (token) =>
+				var job = new Mocks.MockFastJob(everyMilliseconds: JobManager.HIGH_PRECISION_HEARTBEAT_INTERVAL_MSEC, action: (token) =>
 				{
 					did_run = true;
 				});
@@ -423,5 +424,40 @@ namespace Chronometer.Test
 				Assert.True(elapsed <= JobManager.HIGH_PRECISION_HEARTBEAT_INTERVAL_MSEC * 2);
 			}
 		}
+
+		[Fact]
+		public void JobFiringShouldRespectSchedule()
+		{
+			var RUN_COUNT = 10;
+			var JOB_INTERVAL = JobManager.HIGH_PRECISION_HEARTBEAT_INTERVAL_MSEC * 5;
+			var EXPECTED_TIME = JOB_INTERVAL * RUN_COUNT;
+			var MAXIMUM_TIME = JOB_INTERVAL * (RUN_COUNT + 1);
+
+			using (var manager = new JobManager())
+			{
+				var runtimes = new List<DateTime>();
+				manager.Initialize();
+				manager.EnableHighPrecisionHeartbeat = true;
+
+				var job = new Mocks.MockFastJob(everyMilliseconds: JOB_INTERVAL, action: (token) =>
+				{
+					runtimes.Add(DateTime.UtcNow);
+				});
+
+				manager.LoadJobInstance(job);
+				manager.Start();
+
+                var elapsed = Utility.Threading.BlockUntil(() => runtimes.Count == RUN_COUNT, timeout: MAXIMUM_TIME);
+
+				//stop processing new events ...
+				manager.Standby();				
+				var diff_from_expected = Math.Abs(elapsed - EXPECTED_TIME);
+
+				Assert.True(diff_from_expected < JobManager.HIGH_PRECISION_HEARTBEAT_INTERVAL_MSEC);
+				Assert.Equal(RUN_COUNT, runtimes.Count);
+			}
+
+			Trace.Current.Dispose();
+        }
 	}
 }

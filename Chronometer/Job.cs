@@ -47,23 +47,21 @@ namespace Chronometer
 		public void Execute(CancellationToken token)
 		{
 			var did_succeed = false;
-			var before = default(DateTime);
-			var after = default(DateTime);
+			var sw = new System.Diagnostics.Stopwatch();
 
 			try
 			{
-				before = DateTime.UtcNow;
+				sw.Start();
 				ExecuteImpl(token);
-				after = DateTime.UtcNow;
+				sw.Stop();
 				did_succeed = true;
 			}
 			catch (Exception ex)
 			{
 				if (ShouldLogFailures)
 				{
-					after = DateTime.UtcNow;
-					var ellapsed = Utility.Time.MillisecondsToDisplay(after - before);
-					Trace.Current.WriteError(String.Format("Job '{0}' Failed, {1} ellapsed.", this.Id, ellapsed));
+					sw.Stop();
+					Trace.Current.WriteError(String.Format("Job '{0}' Failed, {1} ellapsed.", this.Id, Utility.Time.MillisecondsToDisplay(sw.Elapsed)));
 					Trace.Current.WriteError(String.Format("Failed with exception: {0}", ex.ToString()));
 				}
 			}
@@ -71,8 +69,7 @@ namespace Chronometer
 			{
 				if (ShouldLogSuccesses && did_succeed)
 				{
-					var ellapsed = Utility.Time.MillisecondsToDisplay(after - before);
-					Trace.Current.Write(String.Format("Job '{0}' Succeeded, {1} ellapsed", this.Id, ellapsed));
+					Trace.Current.Write(String.Format("Job '{0}' Succeeded, {1} ellapsed", this.Id, Utility.Time.MillisecondsToDisplay(sw.Elapsed)));
 				}
 			}
 		}

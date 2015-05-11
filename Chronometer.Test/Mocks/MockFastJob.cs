@@ -41,7 +41,7 @@ namespace Chronometer.Test.Mocks
 
 		public override JobSchedule GetSchedule()
 		{
-			return JobSchedule.AsInterval().Every(TimeSpan.FromMilliseconds(this.EveryMilliseconds));
+			return JobSchedule.AsInterval().Every(TimeSpan.FromMilliseconds(this.EveryMilliseconds)); ;
 		}
 	}
 }

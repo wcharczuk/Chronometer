@@ -448,9 +448,9 @@ namespace Chronometer
 		/// <returns>Self</returns>
 		public IntervalJobSchedule Every(TimeSpan timespan)
 		{
-			if (timespan.TotalMilliseconds < JobManager.HIGH_PRECISION_HEARTBEAT_INTERVAL_MSEC)
+			if (timespan.TotalMilliseconds <= JobManager.HIGH_PRECISION_HEARTBEAT_INTERVAL_MSEC)
 			{
-				throw new ArgumentException("Interval cannot be smaller than the high precision heartbeat interval.", "timespan");
+				throw new ArgumentException("Interval cannot be equal to or smaller than the high precision heartbeat interval.", "timespan");
 			}
 			this._every = timespan;
 			return this;
@@ -545,7 +545,7 @@ namespace Chronometer
 		protected HashSet<WeeklyTime> _weeklyDueTimes = new HashSet<WeeklyTime>();
 		protected HashSet<DailyTime> _dailyDueTimes = new HashSet<DailyTime>();
 
-		protected DateTime? _nextMonthlyDueTime(DateTime? lastRunTime = null)
+		private DateTime? _nextMonthlyDueTime(DateTime? lastRunTime = null)
 		{
 			if (_monthlyDueTimes.Any())
 			{
@@ -560,7 +560,7 @@ namespace Chronometer
 			return null;
 		}
 
-		protected DateTime? _nextWeeklyDueTime(DateTime? lastRunTime = null)
+		private DateTime? _nextWeeklyDueTime(DateTime? lastRunTime = null)
 		{
 			if (_weeklyDueTimes.Any())
 			{
@@ -574,7 +574,7 @@ namespace Chronometer
 			return null;
 		}
 
-		protected DateTime? _nextDailyDueTime(DateTime? lastRunTime = null)
+		private DateTime? _nextDailyDueTime(DateTime? lastRunTime = null)
 		{
 			if (_dailyDueTimes.Any())
 			{
@@ -588,7 +588,7 @@ namespace Chronometer
 			return null;
 		}
 
-		protected DateTime? _nextAbsoluteDueTime(DateTime? lastRunTime = null)
+		private DateTime? _nextAbsoluteDueTime(DateTime? lastRunTime = null)
 		{
 			var dueTimes = new List<DateTime>();
 			var monthly = _nextMonthlyDueTime(lastRunTime);
@@ -641,12 +641,25 @@ namespace Chronometer
 			return this;
 		}
 
+		/// <summary>
+		/// Absolute (monthly) time when to start the job.
+		/// </summary>
+		/// <param name="day"></param>
+		/// <param name="hour"></param>
+		/// <param name="minute"></param>
+		/// <param name="second"></param>
+		/// <returns></returns>
 		public AbsoluteJobSchedule WithMonthlyTime(int day, int hour, int minute, int second)
 		{
 			_monthlyDueTimes.Add(new MonthlyTime(day, hour, minute, second));
 			return this;
 		}
 
+		/// <summary>
+		/// Generate the next run time given a previous run time.
+		/// </summary>
+		/// <param name="lastRunTime"></param>
+		/// <returns></returns>
 		public override DateTime? GetNextRunTime(DateTime? lastRunTime = null)
 		{
 			return _nextAbsoluteDueTime(lastRunTime);

@@ -79,7 +79,7 @@ namespace Chronometer
 
 		protected virtual string _trace_preamble()
 		{
-			return String.Format("{0} Chronometer :: ", DateTime.UtcNow.ToString("yyyy/MM/dd HH:mm:ss"));
+			return String.Format("{0} Chronometer :: ", DateTime.UtcNow.ToString("yyyy/MM/dd HH:mm:ss.fff"));
         }
 
 		public void Write(string message)

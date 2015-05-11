@@ -17,7 +17,7 @@ namespace Chronometer
 		#region Constants
 
 		public const int HEARTBEAT_INTERVAL_MSEC = 1000;
-		public const int HIGH_PRECISION_HEARTBEAT_INTERVAL_MSEC = 50;
+		public const int HIGH_PRECISION_HEARTBEAT_INTERVAL_MSEC = 10;
 		
 		public enum State
 		{
@@ -29,6 +29,7 @@ namespace Chronometer
 		#endregion
 
 		#region Current
+
 		private static Object _managerLock = new object();
 		private static JobManager _current = null;
 		public static JobManager Current
@@ -49,6 +50,7 @@ namespace Chronometer
 				return _current;
 			}
 		}
+
 		#endregion
 
 		#region .ctor()
@@ -157,11 +159,17 @@ namespace Chronometer
 		/// </summary>
 		public Boolean EnableHighPrecisionHeartbeat { get { return _useHighPrecisionHeartbeat; } set { _useHighPrecisionHeartbeat = value; } }
 
+		private TimeSpan _heartbeatInterval = TimeSpan.FromMilliseconds(HEARTBEAT_INTERVAL_MSEC);
+		/// <summary>
+		/// The current heartbeat interval.
+		/// </summary>
+		public TimeSpan HeartbeatInterval { get { return _heartbeatInterval; } private set { _heartbeatInterval = value; } }
+
 		#endregion
 
-		#region Private Storage
+				#region Private Storage
 
-		private DateTime? _runningSince = null;
+			private DateTime? _runningSince = null;
 		private ConcurrentDictionary<String, Job> _jobs { get; set; }
 		private ConcurrentDictionary<String, JobSchedule> _jobSchedules { get; set; }
 
@@ -291,19 +299,26 @@ namespace Chronometer
 			{
 				var schedule = job.GetSchedule();
 				_jobSchedules.TryAdd(job.Id, schedule);
-				if (job.ShouldTrackRunCount) { _runCounts.TryAdd(job.Id, 0); }
-				_nextRunTimes.TryAdd(job.Id, schedule.GetNextRunTime());
+
+				if (job.ShouldTrackRunCount)
+				{
+					_runCounts.TryAdd(job.Id, 0);
+				}
+
+				_queueNewRunTime(job.Id, schedule, DateTime.UtcNow);
 			}
 
 			if (this._useHighPrecisionHeartbeat)
 			{
-				_heartbeat = new Timer(new TimerCallback(HeartBeat), this, 0, HIGH_PRECISION_HEARTBEAT_INTERVAL_MSEC);
+				_heartbeatInterval = TimeSpan.FromMilliseconds(HIGH_PRECISION_HEARTBEAT_INTERVAL_MSEC);
+                _heartbeat = new Timer(new TimerCallback(HeartBeat), this, HIGH_PRECISION_HEARTBEAT_INTERVAL_MSEC, HIGH_PRECISION_HEARTBEAT_INTERVAL_MSEC);
 			}
 			else
 			{
-				_heartbeat = new Timer(new TimerCallback(HeartBeat), this, 0, HEARTBEAT_INTERVAL_MSEC);
+				_heartbeatInterval = TimeSpan.FromMilliseconds(HEARTBEAT_INTERVAL_MSEC);
+				_heartbeat = new Timer(new TimerCallback(HeartBeat), this, HEARTBEAT_INTERVAL_MSEC, HEARTBEAT_INTERVAL_MSEC);
 			}
-			_runningSince = DateTime.Now;
+			_runningSince = DateTime.UtcNow;
 			RunningState = State.Running;
 
 			Trace.Current.Write("Job Manager has entered Running state.");
@@ -314,8 +329,6 @@ namespace Chronometer
 		/// </summary>
 		public void Standby()
 		{
-			RunningState = State.Standby;
-
 			_jobSchedules.Clear();
 			_nextRunTimes.Clear();
 
@@ -336,6 +349,7 @@ namespace Chronometer
 				_heartbeat = null;
 			}
 
+			_status = State.Standby;
 			Trace.Current.Write("Job Manager has entered Standby state.");
 		}
 
@@ -374,14 +388,28 @@ namespace Chronometer
 				Job job = null;
 				if (_jobs.TryGetValue(jobId, out job))
 				{
-					RunBackgroundTask(job);
-					var timestamp = DateTime.Now;
-					_lastRunTimes.AddOrUpdate(jobId, timestamp, (str, old) => timestamp);
 					var schedule = _jobSchedules[jobId];
-					var nextRunTime = schedule.GetNextRunTime(timestamp);
-					_nextRunTimes.AddOrUpdate(jobId, nextRunTime, (str, old) => nextRunTime);
+
+					RunBackgroundTask(job);
+
+					var timestamp = DateTime.UtcNow;
+					_lastRunTimes.AddOrUpdate(jobId, timestamp, (str, old) => timestamp);
+					_queueNewRunTime(jobId, schedule, timestamp);
 				}
 			}
+		}
+
+		private void _queueNewRunTime(String jobId, JobSchedule schedule, DateTime lastRunTime)
+		{
+			var nextRunTime = schedule.GetNextRunTime(lastRunTime);
+			_nextRunTimes.AddOrUpdate(jobId, nextRunTime, (str, old) => nextRunTime);
+#if DEBUG           
+			Trace.Current.WriteFormat("Queuing Runtime for {0} at {1}", jobId, nextRunTime.Value.ToString("yyyy/MM/dd HH:mm:ss.fff"));
+			if (nextRunTime != null)
+			{
+				Trace.Current.WriteFormat("Delta from last runtime is {0}", Utility.Time.MillisecondsToDisplay(nextRunTime.Value - lastRunTime));
+			}
+#endif
 		}
 
 		/// <summary>
@@ -416,7 +444,7 @@ namespace Chronometer
 			jobTask.Start();
 
 			_runningJobs.AddOrUpdate(actionId, jobTask, (str, j) => { return jobTask; });
-			_runningJobStartTimes.AddOrUpdate(actionId, DateTime.Now, (str, dt) => { return DateTime.Now; });
+			_runningJobStartTimes.AddOrUpdate(actionId, DateTime.UtcNow, (str, dt) => { return DateTime.UtcNow; });
 		}
 
 		/// <summary>
@@ -480,7 +508,7 @@ namespace Chronometer
 				DateTime? startTime = null;
 				_runningJobStartTimes.TryGetValue(jobId, out startTime);
 				if (startTime != null)
-					return DateTime.Now - startTime.Value;
+					return DateTime.UtcNow - startTime.Value;
 				else
 					return null;
 			}
@@ -542,7 +570,7 @@ namespace Chronometer
 			foreach (var job in _jobs.Values)
 			{
 				var nextRunTime = _nextRunTimes[job.Id];
-				if (nextRunTime < DateTime.UtcNow || (_nextRunTimes[job.Id] - DateTime.Now < TimeSpan.FromMilliseconds(HEARTBEAT_INTERVAL_MSEC)))
+				if (_nextRunTimes[job.Id] - DateTime.UtcNow < this.HeartbeatInterval)
 				{
 					this.RunJob(job.Id);
 				}
@@ -590,7 +618,7 @@ namespace Chronometer
 				var timeout = taskTimeout;
 				if (timeout != null)
 				{
-					if (DateTime.Now - kvp.Value > TimeSpan.FromMilliseconds(timeout.Value))
+					if (DateTime.UtcNow - kvp.Value > TimeSpan.FromMilliseconds(timeout.Value))
 					{
 						_killHangingJob(kvp.Key);
 					}
