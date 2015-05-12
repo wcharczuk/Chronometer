@@ -2,7 +2,7 @@
 <package xmlns="http://schemas.microsoft.com/packaging/2010/07/nuspec.xsd">
   <metadata schemaVersion="2">
     <id>Chronometer-Jobs</id>
-    <version>0.5.7</version>
+    <version>0.5.9</version>
     <authors>Will Charczuk</authors>
 	<owners>Will Charczuk</owners>    
     <projectUrl>https://github.com/wcharczuk/chronometer</projectUrl>

@@ -44,7 +44,10 @@ namespace Chronometer
 		/// </summary>
 		public virtual Action<CancellationToken> Operation { get; set; }
 
-		public virtual Double Progress { get { return 1; } }
+		/// <summary>
+		/// The relative progress of the task. On the interval 0 to 1.0, where 0.5 represents 50%
+		/// </summary>
+		public virtual Double Progress { get { return 0.0; } }
 
 		public event BackgroundTaskEvent Start;
 		public event BackgroundTaskEvent Complete;
@@ -52,18 +55,18 @@ namespace Chronometer
 		public event BackgroundTaskEvent Error;
 		public event BackgroundTaskEvent Timeout;
 
-		public string CreatedBy { get; set; }
-		public DateTime CreatedUTC { get; set; }
-		public DateTime? FinishedUTC { get; set; }
-		public DateTime? TimedOutUTC { get; set; }
+		public virtual string CreatedBy { get; set; }
+		public virtual DateTime CreatedUTC { get; set; }
+		public virtual DateTime? FinishedUTC { get; set; }
+		public virtual DateTime? TimedOutUTC { get; set; }
 
-		public Exception Exception { get; set; }
+		public virtual Exception Exception { get; set; }
 
-		public Boolean DidComplete { get { return FinishedUTC != null; } }
-		public Boolean DidError { get { return this.Exception != null; } }
-		public Boolean DidTimeout { get { return this.TimedOutUTC != null; } }
+		public virtual Boolean DidComplete { get { return FinishedUTC != null; } }
+		public virtual Boolean DidError { get { return this.Exception != null; } }
+		public virtual Boolean DidTimeout { get { return this.TimedOutUTC != null; } }
 
-		public String Ellapsed
+		public virtual String Ellapsed
 		{
 			get
 			{
@@ -73,7 +76,7 @@ namespace Chronometer
 			set { }
 		}
 
-		protected void OnStart()
+		public virtual void OnStart()
 		{
 			this.CreatedUTC = DateTime.UtcNow;
 			var handler = this.Start;
@@ -81,7 +84,7 @@ namespace Chronometer
 				handler(this, null);
 		}
 
-		protected void OnComplete()
+		public virtual void OnComplete()
 		{
 			this.FinishedUTC = DateTime.UtcNow;
 			var handler = this.Complete;
@@ -89,14 +92,14 @@ namespace Chronometer
 				handler(this, null);
 		}
 
-		public void OnCancellation()
+		public virtual void OnCancellation()
 		{
 			var handler = this.Cancellation;
 			if (handler != null)
 				handler(this, null);
 		}
 
-		public void OnTimeout(DateTime timedOutUtc)
+		public virtual void OnTimeout(DateTime timedOutUtc)
 		{
 			this.TimedOutUTC = timedOutUtc;
 			var handler = this.Timeout;
@@ -104,7 +107,7 @@ namespace Chronometer
 				handler(this, null);
 		}
 
-		protected void OnError(Exception e)
+		public virtual void OnError(Exception e)
 		{
 			this.Exception = e;
 			var handler = this.Error;
@@ -112,12 +115,12 @@ namespace Chronometer
 				handler(this, null);
 		}
 
-		public void Execute()
+		public virtual void Execute()
 		{
 			this.Execute(CancellationToken.None);
 		}
 
-		public void Execute(CancellationToken token)
+		public virtual void Execute(CancellationToken token)
 		{
 			try
 			{
