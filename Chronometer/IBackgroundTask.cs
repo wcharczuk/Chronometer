@@ -11,8 +11,14 @@ namespace Chronometer
 	{
 		String Id { get; }
 
+		#region Timeouts
+
 		Int32? TimeoutMilliseconds { get; }
+		event BackgroundTaskEvent Timeout;
+		void OnTimeout(DateTime timedOutUtc);
+
+		#endregion
 
 		void Execute(CancellationToken cancellationToken);
-	}
+    }
 }

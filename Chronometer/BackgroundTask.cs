@@ -8,6 +8,13 @@ using System.Threading;
 namespace Chronometer
 {
 	/// <summary>
+	/// Delegate type for background task events.
+	/// </summary>
+	/// <param name="sender"></param>
+	/// <param name="e"></param>
+	public delegate void BackgroundTaskEvent(object sender, EventArgs e);
+
+	/// <summary>
 	/// TaskActions are one off (on demand) tasks that you run using the Job Manager framework.
 	/// </summary>
 	[Serializable]
@@ -22,8 +29,6 @@ namespace Chronometer
 			this.Id = System.Guid.NewGuid().ToString("N");
 			this.Operation = operation;
 		}
-
-		public delegate void BackgroundTaskEvent(object sender, EventArgs e);
 
 		public virtual String Id { get; set; }
 
@@ -91,8 +96,9 @@ namespace Chronometer
 				handler(this, null);
 		}
 
-		public void OnTimeout()
+		public void OnTimeout(DateTime timedOutUtc)
 		{
+			this.TimedOutUTC = timedOutUtc;
 			var handler = this.Timeout;
 			if (handler != null)
 				handler(this, null);

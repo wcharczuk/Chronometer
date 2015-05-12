@@ -411,7 +411,7 @@ namespace Chronometer.Test
 			{
 				var did_run = false;
 				manager.Initialize();
-				var job = new Mocks.MockFastJob(everyMilliseconds: JobManager.HIGH_PRECISION_HEARTBEAT_INTERVAL_MSEC, action: (token) =>
+				var job = new Mocks.MockFastJob(everyMilliseconds: JobManager.HIGH_PRECISION_HEARTBEAT_INTERVAL_MSEC * 2, action: (token) =>
 				{
 					did_run = true;
 				});
@@ -421,7 +421,7 @@ namespace Chronometer.Test
 
 				var elapsed = Utility.Threading.BlockUntil(() => did_run, JobManager.HIGH_PRECISION_HEARTBEAT_INTERVAL_MSEC * 3);
 				Assert.True(did_run);
-				Assert.True(elapsed <= JobManager.HIGH_PRECISION_HEARTBEAT_INTERVAL_MSEC * 2);
+				Assert.True(elapsed <= JobManager.HIGH_PRECISION_HEARTBEAT_INTERVAL_MSEC * 5);
 			}
 		}
 

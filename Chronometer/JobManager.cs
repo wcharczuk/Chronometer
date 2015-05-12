@@ -586,11 +586,10 @@ namespace Chronometer
 					var asyncState = _runningJobs[jobId].AsyncState as JobState;
 					if (asyncState != null)
 					{
-						var task = asyncState.BackgroundTask as BackgroundTask;
+						var task = asyncState.BackgroundTask as IBackgroundTask;
 						if (task != null)
 						{
-							task.TimedOutUTC = DateTime.UtcNow;
-							task.OnTimeout();
+							task.OnTimeout(DateTime.UtcNow);
 						}
 					}
 

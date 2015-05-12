@@ -37,6 +37,11 @@ namespace Chronometer
 		public virtual Boolean ShouldLogFailures { get { return true; } }
 
 		/// <summary>
+		/// Whether or not to log timeouts. Defaults to `true`.
+		/// </summary>
+		public virtual Boolean ShouldLogTimeouts { get { return true; } }
+
+		/// <summary>
 		/// Whether or not to track number of times run. Defaults to `true`.
 		/// </summary>
 		public virtual Boolean ShouldTrackRunCount { get { return true; } }
@@ -51,27 +56,87 @@ namespace Chronometer
 
 			try
 			{
+				this.OnStart();
+
 				sw.Start();
 				ExecuteImpl(token);
 				sw.Stop();
+
 				did_succeed = true;
-			}
-			catch (Exception ex)
-			{
-				if (ShouldLogFailures)
-				{
-					sw.Stop();
-					Trace.Current.WriteError(String.Format("Job '{0}' Failed, {1} ellapsed.", this.Id, Utility.Time.MillisecondsToDisplay(sw.Elapsed)));
-					Trace.Current.WriteError(String.Format("Failed with exception: {0}", ex.ToString()));
-				}
-			}
-			finally
-			{
+
+				this.OnComplete();
+
 				if (ShouldLogSuccesses && did_succeed)
 				{
 					Trace.Current.Write(String.Format("Job '{0}' Succeeded, {1} ellapsed", this.Id, Utility.Time.MillisecondsToDisplay(sw.Elapsed)));
 				}
 			}
+			catch (Exception ex)
+			{
+				
+				try
+				{
+					sw.Stop();
+					this.OnError(ex);
+				}
+				catch { }
+
+				if (ShouldLogFailures)
+				{
+					Trace.Current.WriteError(String.Format("Job '{0}' Failed, {1} ellapsed.", this.Id, Utility.Time.MillisecondsToDisplay(sw.Elapsed)));
+					Trace.Current.WriteError(String.Format("Failed with exception: {0}", ex.ToString()));
+				}
+			}
 		}
+
+		#region Events
+
+		public event BackgroundTaskEvent Start;
+		public event BackgroundTaskEvent Complete;
+		public event BackgroundTaskEvent Cancellation;
+		public event BackgroundTaskEvent Error;
+		public event BackgroundTaskEvent Timeout;
+
+		protected void OnStart()
+		{
+			var handler = this.Start;
+			if (handler != null)
+				handler(this, null);
+		}
+
+		protected void OnComplete()
+		{
+			var handler = this.Complete;
+			if (handler != null)
+				handler(this, null);
+		}
+
+		public void OnCancellation()
+		{
+			var handler = this.Cancellation;
+			if (handler != null)
+				handler(this, null);
+		}
+
+		public void OnTimeout(DateTime timedoutUtc)
+		{
+			if (ShouldLogTimeouts)
+			{
+				Trace.Current.Write(String.Format("Job '{0}' timed out.", this.Id));
+			}
+
+			var handler = this.Timeout;
+			if (handler != null)
+				handler(this, null);
+		}
+
+		protected void OnError(Exception e)
+		{
+			var handler = this.Error;
+			if (handler != null)
+				handler(this, null);
+		}
+
+		#endregion
 	}
 }
