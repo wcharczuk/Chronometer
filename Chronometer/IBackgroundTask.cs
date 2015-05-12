@@ -19,6 +19,13 @@ namespace Chronometer
 
 		#endregion
 
+		#region Cancellation
+
+		event BackgroundTaskEvent Cancellation;
+		void OnCancellation();
+
+		#endregion
+
 		void Execute(CancellationToken cancellationToken);
     }
 }
