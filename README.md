@@ -64,16 +64,9 @@ Other Items:
 	```c#
 	var task = new BackgroundTask((token) =>
 	{
-		while(true)
+		while(!token.IsCancellationRequested)
 		{
-			if (token.IsCancellationRequested)
-			{
-				break;
-			}
-			else 
-			{
-				System.Threading.Thread.Sleep(100); //sleep for 100ms
-			}
+			System.Threading.Thread.Sleep(100); //sleep for 100ms
 		}
 	});
 	```
@@ -91,16 +84,9 @@ Other Items:
 
 		public override void ExecuteImpl(CancellationToken token)
 		{
-			while(true)
+			while(!token.IsCancellationRequested)
 			{
-				if (token.IsCancellationRequested)
-				{
-					break;
-				}
-				else 
-				{
-					System.Threading.Thread.Sleep(100); //sleep for 100ms
-				}
+				System.Threading.Thread.Sleep(100); //sleep for 100ms
 			}
 		}
 
