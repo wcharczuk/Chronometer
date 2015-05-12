@@ -80,7 +80,7 @@ namespace Chronometer.Test
 		{
 			var basic_schedule = JobSchedule.AsInterval().EveryMinutes(5);
 			var now = DateTime.UtcNow;
-			var now_plus_one = DateTime.UtcNow.AddHours(1);
+			var now_plus_one = DateTime.UtcNow.AddHours(1).AddMinutes(5);
 			var next_run = basic_schedule.GetNextRunTime(now.AddHours(1));
             Assert.NotNull(next_run);
 			Assert.Equal(now_plus_one.Hour, next_run.Value.Hour);

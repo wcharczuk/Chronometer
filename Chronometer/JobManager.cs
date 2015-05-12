@@ -148,7 +148,7 @@ namespace Chronometer
 			}
 			catch (Exception ex)
 			{
-				Trace.Current.WriteError(ex.ToString());
+				Logger.Current.WriteError(LogLevel.Critical, ex.ToString());
 			}
 		}
 
@@ -199,7 +199,7 @@ namespace Chronometer
 			_runningJobStartTimes = new ConcurrentDictionary<String, DateTime?>();
 			_status = State.Off;
 			_useHighPrecisionHeartbeat = false;
-			Trace.Current.WriteFormat("Job Manager initialized.");
+			Logger.Current.WriteFormat(LogLevel.Standard, "Job Manager initialized.");
 		}
 
 		/// <summary>
@@ -255,7 +255,7 @@ namespace Chronometer
 				_runCounts.TryAdd(job.Id, 0);
 				_nextRunTimes.TryAdd(job.Id, schedule.GetNextRunTime());
 
-				Trace.Current.WriteFormat("Job Manager has loaded job '{0}'", job.Id);
+				Logger.Current.WriteFormat(LogLevel.Standard, "Job Manager has loaded job '{0}'", job.Id);
 			}
 			else
 			{
@@ -321,7 +321,7 @@ namespace Chronometer
 			_runningSince = DateTime.UtcNow;
 			RunningState = State.Running;
 
-			Trace.Current.Write("Job Manager has entered Running state.");
+			Logger.Current.Write(LogLevel.Standard, "Job Manager has entered Running state.");
 		}
 
 		/// <summary>
@@ -350,7 +350,7 @@ namespace Chronometer
 			}
 
 			_status = State.Standby;
-			Trace.Current.Write("Job Manager has entered Standby state.");
+			Logger.Current.Write(LogLevel.Standard, "Job Manager has entered Standby state.");
 		}
 
 		/// <summary>
@@ -403,11 +403,11 @@ namespace Chronometer
 		{
 			var nextRunTime = schedule.GetNextRunTime(lastRunTime);
 			_nextRunTimes.AddOrUpdate(jobId, nextRunTime, (str, old) => nextRunTime);
-#if DEBUG           
-			Trace.Current.WriteFormat("Queuing Runtime for {0} at {1}", jobId, nextRunTime.Value.ToString("yyyy/MM/dd HH:mm:ss.fff"));
+#if DEBUG
+			Logger.Current.Write(LogLevel.Verbose, "Queuing Runtime for {0} at {1}", jobId, nextRunTime.Value.ToString("yyyy/MM/dd HH:mm:ss.fff"));
 			if (nextRunTime != null)
 			{
-				Trace.Current.WriteFormat("Delta from last runtime is {0}", Utility.Time.MillisecondsToDisplay(nextRunTime.Value - lastRunTime));
+				Logger.Current.Write(LogLevel.Verbose, "Delta from last runtime is {0}", Utility.Time.MillisecondsToDisplay(nextRunTime.Value - lastRunTime));
 			}
 #endif
 		}
@@ -435,7 +435,7 @@ namespace Chronometer
 				}
 				catch (Exception ex)
 				{
-					Trace.Current.WriteError(ex.ToString());
+					Logger.Current.Write(LogLevel.Critical, ex.ToString());
 				}
 			}, state: asyncState, cancellationToken: token);
 
@@ -556,7 +556,7 @@ namespace Chronometer
 			}
 			catch (Exception ex)
 			{
-				Trace.Current.WriteError(ex.ToString());
+				Logger.Current.WriteError(LogLevel.Critical, ex.ToString());
 			}
 		}
 

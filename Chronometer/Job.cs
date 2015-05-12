@@ -68,7 +68,7 @@ namespace Chronometer
 
 				if (ShouldLogSuccesses && did_succeed)
 				{
-					Trace.Current.Write(String.Format("Job '{0}' Succeeded, {1} ellapsed", this.Id, Utility.Time.MillisecondsToDisplay(sw.Elapsed)));
+					Logger.Current.Write(LogLevel.Verbose, String.Format("Job '{0}' Succeeded, {1} ellapsed", this.Id, Utility.Time.MillisecondsToDisplay(sw.Elapsed)));
 				}
 			}
 			catch (Exception ex)
@@ -83,8 +83,8 @@ namespace Chronometer
 
 				if (ShouldLogFailures)
 				{
-					Trace.Current.WriteError(String.Format("Job '{0}' Failed, {1} ellapsed.", this.Id, Utility.Time.MillisecondsToDisplay(sw.Elapsed)));
-					Trace.Current.WriteError(String.Format("Failed with exception: {0}", ex.ToString()));
+					Logger.Current.WriteError(LogLevel.Standard, String.Format("Job '{0}' Failed, {1} ellapsed.", this.Id, Utility.Time.MillisecondsToDisplay(sw.Elapsed)));
+					Logger.Current.WriteError(LogLevel.Standard, String.Format("Failed with exception: {0}", ex.ToString()));
 				}
 			}
 		}
@@ -122,7 +122,7 @@ namespace Chronometer
 		{
 			if (ShouldLogTimeouts)
 			{
-				Trace.Current.Write(String.Format("Job '{0}' timed out.", this.Id));
+				Logger.Current.Write(String.Format("Job '{0}' timed out.", this.Id));
 			}
 
 			var handler = this.Timeout;

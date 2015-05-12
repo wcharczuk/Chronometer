@@ -8,15 +8,15 @@ using Xunit;
 
 namespace Chronometer.Test
 {
-	public class Trace_Tests
+	public class Logger_Tests
 	{
 		[Fact]
-		public void TestWrite()
+		public void Write()
 		{
-			using (var trace = new Trace())
+			using (var trace = new Logger())
 			{
 				var buffer = new MemoryStream();
-				trace.InitializeWithStreams(buffer, buffer);
+				trace.InitializeWithStreams(buffer);
 				trace.Write("This is a test");
 
 				var text = System.Text.Encoding.Default.GetString(buffer.ToArray());
@@ -27,9 +27,9 @@ namespace Chronometer.Test
 		}
 
 		[Fact]
-		public void TestWriteError()
+		public void WriteError()
 		{
-			using (var trace = new Trace())
+			using (var trace = new Logger())
 			{
 				var buffer = new MemoryStream();
 				trace.InitializeWithStreams(buffer, buffer);
@@ -43,12 +43,12 @@ namespace Chronometer.Test
 		}
 
 		[Fact]
-		public void TestWriteFormat()
+		public void WriteFormat()
 		{
-			using (var trace = new Trace())
+			using (var trace = new Logger())
 			{
 				var buffer = new MemoryStream();
-				trace.InitializeWithStreams(buffer, buffer);
+				trace.InitializeWithStreams(buffer);
 				trace.WriteFormat("This is a {0}", "dog");
 
 				var text = System.Text.Encoding.Default.GetString(buffer.ToArray());
@@ -59,9 +59,9 @@ namespace Chronometer.Test
 		}
 
 		[Fact]
-		public void TestWriteErrorFormat()
+		public void WriteErrorFormat()
 		{
-			using (var trace = new Trace())
+			using (var trace = new Logger())
 			{
 				var buffer = new MemoryStream();
 				trace.InitializeWithStreams(buffer, buffer);

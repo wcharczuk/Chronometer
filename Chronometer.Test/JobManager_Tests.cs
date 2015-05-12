@@ -456,8 +456,6 @@ namespace Chronometer.Test
 				Assert.True(diff_from_expected < JobManager.HIGH_PRECISION_HEARTBEAT_INTERVAL_MSEC);
 				Assert.Equal(RUN_COUNT, runtimes.Count);
 			}
-
-			Trace.Current.Dispose();
         }
 	}
 }
