@@ -11,9 +11,21 @@ namespace Chronometer
 	{
 		String Id { get; }
 
+		#region Start
+
+		event BackgroundTaskEvent Start;
+		void OnStart();
+
+		#endregion
+
+		#region Error
+		event BackgroundTaskEvent Error;
+		void OnError(Exception e);
+		#endregion
+
 		#region Timeouts
 
-		Int32? TimeoutMilliseconds { get; }
+		int? TimeoutMilliseconds { get; }
 		event BackgroundTaskEvent Timeout;
 		void OnTimeout(DateTime timedOutUtc);
 
@@ -23,6 +35,13 @@ namespace Chronometer
 
 		event BackgroundTaskEvent Cancellation;
 		void OnCancellation();
+
+		#endregion
+
+		#region Complete
+
+		event BackgroundTaskEvent Complete;
+		void OnComplete();
 
 		#endregion
 

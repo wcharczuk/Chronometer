@@ -436,6 +436,7 @@ namespace Chronometer.Test
 			using (var manager = new JobManager())
 			{
 				var runtimes = new List<DateTime>();
+				var complete_times = new List<DateTime>();
 				manager.Initialize();
 				manager.EnableHighPrecisionHeartbeat = true;
 
@@ -443,6 +444,11 @@ namespace Chronometer.Test
 				{
 					runtimes.Add(DateTime.UtcNow);
 				});
+
+				job.Complete += (sender, event_args) =>
+				{
+					complete_times.Add(DateTime.UtcNow);
+				};
 
 				manager.LoadJobInstance(job);
 				manager.Start();
@@ -455,6 +461,7 @@ namespace Chronometer.Test
 
 				Assert.True(diff_from_expected < JobManager.HIGH_PRECISION_HEARTBEAT_INTERVAL_MSEC);
 				Assert.Equal(RUN_COUNT, runtimes.Count);
+				Assert.Equal(RUN_COUNT, complete_times.Count);
 			}
         }
 	}

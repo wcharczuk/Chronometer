@@ -20,7 +20,7 @@ namespace Chronometer
 	[Serializable]
 	public class BackgroundTask : IBackgroundTask
 	{
-		public const int TIMEOUT_MSEC = 60 * 60 * 1000;
+		public const Int32 TIMEOUT_MSEC = 60 * 60 * 1000;
 
 		public BackgroundTask() { }
 
@@ -32,7 +32,7 @@ namespace Chronometer
 
 		public virtual String Id { get; set; }
 
-		private int? _timeoutMilliseconds = null;
+		private Int32? _timeoutMilliseconds = null;
 		public virtual Int32? TimeoutMilliseconds
 		{
 			get { return this._timeoutMilliseconds ?? TIMEOUT_MSEC; }
@@ -55,7 +55,7 @@ namespace Chronometer
 		public event BackgroundTaskEvent Error;
 		public event BackgroundTaskEvent Timeout;
 
-		public virtual string CreatedBy { get; set; }
+		public virtual String CreatedBy { get; set; }
 		public virtual DateTime CreatedUTC { get; set; }
 		public virtual DateTime? FinishedUTC { get; set; }
 		public virtual DateTime? TimedOutUTC { get; set; }

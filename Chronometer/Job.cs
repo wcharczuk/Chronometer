@@ -91,20 +91,22 @@ namespace Chronometer
 
 		#region Events
 
+		public virtual bool AsyncTaskCompletion { get { return false; } }
+
 		public event BackgroundTaskEvent Start;
 		public event BackgroundTaskEvent Complete;
 		public event BackgroundTaskEvent Cancellation;
 		public event BackgroundTaskEvent Error;
 		public event BackgroundTaskEvent Timeout;
 
-		protected void OnStart()
+		public void OnStart()
 		{
 			var handler = this.Start;
 			if (handler != null)
 				handler(this, null);
 		}
 
-		protected void OnComplete()
+		public void OnComplete()
 		{
 			var handler = this.Complete;
 			if (handler != null)
@@ -130,7 +132,7 @@ namespace Chronometer
 				handler(this, null);
 		}
 
-		protected void OnError(Exception e)
+		public void OnError(Exception e)
 		{
 			var handler = this.Error;
 			if (handler != null)

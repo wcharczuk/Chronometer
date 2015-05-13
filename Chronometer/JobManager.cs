@@ -404,10 +404,10 @@ namespace Chronometer
 			var nextRunTime = schedule.GetNextRunTime(lastRunTime);
 			_nextRunTimes.AddOrUpdate(jobId, nextRunTime, (str, old) => nextRunTime);
 #if DEBUG
-			Logger.Current.Write(LogLevel.Verbose, "Queuing Runtime for {0} at {1}", jobId, nextRunTime.Value.ToString("yyyy/MM/dd HH:mm:ss.fff"));
+			Logger.Current.WriteFormat(LogLevel.Verbose, "Queuing Runtime for {0} at {1}", jobId, nextRunTime.Value.ToString("yyyy/MM/dd HH:mm:ss.fff"));
 			if (nextRunTime != null)
 			{
-				Logger.Current.Write(LogLevel.Verbose, "Delta from last runtime is {0}", Utility.Time.MillisecondsToDisplay(nextRunTime.Value - lastRunTime));
+				Logger.Current.WriteFormat(LogLevel.Verbose, "Delta from last runtime is {0}", Utility.Time.MillisecondsToDisplay(nextRunTime.Value - lastRunTime));
 			}
 #endif
 		}
@@ -440,7 +440,11 @@ namespace Chronometer
 			}, state: asyncState, cancellationToken: token);
 
 			_runningJobCancellationTokens.AddOrUpdate(actionId, cancelationTokenSource, (str, cts) => { return cancelationTokenSource; });
-			jobTask.ContinueWith(_onTaskComplete);
+
+			//we need this handler to only fire once, even though the job could be long lived and fire every often
+			action.Complete -= _onComplete;
+			action.Complete += _onComplete;
+			
 			jobTask.Start();
 
 			_runningJobs.AddOrUpdate(actionId, jobTask, (str, j) => { return jobTask; });
@@ -534,25 +538,24 @@ namespace Chronometer
 
 		#region Private Helper Methods
 
-		private void _onTaskComplete(Task task)
+		private void _onComplete(object sender, EventArgs e)
 		{
 			try
 			{
-				var asyncState = task.AsyncState as JobState;
+				var task = sender as IBackgroundTask;
 
-				var job = asyncState.BackgroundTask as Job;
-
+				var job = task as Job;
 				if (job != null)
 				{
-					if (_jobs.ContainsKey(asyncState.Id) && job.ShouldTrackRunCount)
+					if (_jobs.ContainsKey(job.Id) && job.ShouldTrackRunCount)
 					{
-						_runCounts.AddOrUpdate(asyncState.Id, 1, (str, run_count) => { return run_count + 1; });
+						_runCounts.AddOrUpdate(job.Id, 1, (str, run_count) => { return run_count + 1; });
 					}
-				}
+				} 
 
-				_runningJobs.Remove(asyncState.Id);
-				_runningJobCancellationTokens.Remove(asyncState.Id);
-				_runningJobStartTimes.Remove(asyncState.Id);
+				_runningJobs.Remove(task.Id);
+				_runningJobCancellationTokens.Remove(task.Id);
+				_runningJobStartTimes.Remove(task.Id);
 			}
 			catch (Exception ex)
 			{
