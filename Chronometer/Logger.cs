@@ -56,6 +56,8 @@ namespace Chronometer
 		{
 			lock (_init_lock)
 			{
+				_initialized_false();
+				_initialized_from_console = true;
 				_info_stream = new StreamWriter(Console.OpenStandardOutput());
 				_error_stream = new StreamWriter(Console.OpenStandardError());
 			}
@@ -70,6 +72,9 @@ namespace Chronometer
 		{
 			lock (_init_lock)
 			{
+				_initialized_false();
+				_initialized_from_streams = true;
+
 				_info_stream = new StreamWriter(info_stream);
 
 				if (error_stream != null)
@@ -93,12 +98,22 @@ namespace Chronometer
 
 			lock (_init_lock)
 			{
+				_initialized_false();
+                _initialized_from_paths = true;
+				_info_path = info_file_path;
+				_error_path = error_file_path;
+
 				var info_stream = File.Open(info_file_path, FileMode.Append, FileAccess.Write, FileShare.ReadWrite);
 				_info_stream = new StreamWriter(info_stream);
 
 				if (!String.IsNullOrWhiteSpace(error_file_path))
 				{
 					var error_stream = File.Open(error_file_path, FileMode.Append, FileAccess.Write, FileShare.ReadWrite);
+					_error_stream = new StreamWriter(error_stream);
+				}
+				else
+				{
+					var error_stream = File.Open(info_file_path, FileMode.Append, FileAccess.Write, FileShare.ReadWrite);
 					_error_stream = new StreamWriter(error_stream);
 				}
 			}
@@ -109,13 +124,120 @@ namespace Chronometer
 		/// </summary>
 		public LogLevel LogLevel { get; set; }
 
+		private void _initialized_false()
+		{
+			_initialized_from_console = false;
+			_initialized_from_paths = false;
+			_initialized_from_streams = false;
+		}
+		private bool _initialized_from_console = false;
+		private bool _initialized_from_streams = false;
+		private bool _initialized_from_paths = false;
+
+		private string _info_path = null;
+		private string _error_path = null;
+
+		private object _transition_lock = new object();
+		private List<String> _info_buffer = new List<String>();
+		private List<String> _error_buffer = new List<String>();
+		private bool _should_buffer = false;
+		
+		public int BufferedMessages
+		{
+			get
+			{
+				return _info_buffer.Count + _error_buffer.Count;
+			}
+		}
+
+		private void _restore_streams()
+		{
+			if (_initialized_from_console)
+			{
+				this.InitializeWithConsole();
+			}
+			else if (_initialized_from_paths)
+			{
+				this.InitializeWithPaths(this._info_path, this._error_path);
+			}
+			else if (_initialized_from_streams)
+			{
+				throw new InvalidOperationException("Cannot resume when initiailized from streams.");
+			}
+		}
+
+		private void _flush_buffer()
+		{
+			if (_info_stream != null)
+			{
+				foreach (var message in _info_buffer)
+				{
+					_info_stream.WriteLine(message);
+					_info_stream.Flush();
+				}
+				_info_buffer.Clear();
+			}
+
+			if (_error_stream != null)
+			{
+				foreach (var message in _error_buffer)
+				{
+					_error_stream.WriteLine(message);
+					_error_stream.Flush();
+				}
+				_error_buffer.Clear();
+			}
+		}
+
+		private void _suspend_streams()
+		{
+			if (_info_stream != null)
+			{
+				_info_stream.Flush();
+				_info_stream.Dispose();
+				_info_stream = null;
+			}
+
+			if (_error_stream != null)
+			{
+				_error_stream.Flush();
+				_error_stream.Dispose();
+				_error_stream = null;
+			}
+		}
+
+		public void SuspendAndBuffer()
+		{
+			if (_initialized_from_streams)
+			{
+				throw new InvalidOperationException("Cannot resume when initiailized from streams.");
+			}
+
+			lock (_transition_lock)
+			{
+				_suspend_streams();
+				_should_buffer = true;
+			}
+		}
+		
+		public void Resume()
+		{
+			lock(_transition_lock)
+			{
+				_restore_streams();
+				_should_buffer = false;
+				_flush_buffer();
+			}
+		}
+
 		private bool _shouldLog(LogLevel givenLevel)
 		{
 			return (int)this.LogLevel >= (int)givenLevel;
 		}
 		private StreamWriter _error_stream = null;
 		private StreamWriter _info_stream = null;
-		private object _write_lock = new object();
+		private object _info_write_lock = new object();
+		private object _error_write_lock = new object();
 
 		/// <summary>
 		/// The prefix used when writing message to the log.
@@ -127,112 +249,81 @@ namespace Chronometer
 			return String.Format("{0} Chronometer ({1}) :: ", DateTime.UtcNow.ToString("yyyy/MM/dd HH:mm:ss.fff"), level);
         }
 
-		/// <summary>
-		/// Write log message with default LogLevel of Standard.
-		/// </summary>
-		/// <param name="message"></param>
+		private void _write_to_stream(StreamWriter outputStream, List<String> buffer, object streamLock, LogLevel level, string message, params string[] tokens)
+		{
+			if (_shouldLog(level))
+			{
+				lock (streamLock)
+				{
+					var fullMessage = string.Format(Preamble(level) + message, tokens);
+                    if (_should_buffer)
+					{
+						lock (_transition_lock)
+						{
+							if (_should_buffer)
+							{
+								buffer.Add(fullMessage);
+							}
+							else
+							{
+								if (outputStream != null)
+								{
+									outputStream.WriteLine(fullMessage);
+									outputStream.Flush();
+								}
+							}
+						}
+					}
+					else
+					{
+						if (outputStream != null)
+						{
+							outputStream.WriteLine(fullMessage);
+							outputStream.Flush();
+						}
+					}
+				}
+			}
+		}
+
 		public void Write(string message)
 		{
-			Write(LogLevel.Standard, message);
+			_write_to_stream(_info_stream, _info_buffer, _info_write_lock, LogLevel.Standard, message);
 		}
 
-		/// <summary>
-		/// Write a message to the log.
-		/// </summary>
-		/// <param name="level"></param>
-		/// <param name="message"></param>
-        public void Write(LogLevel level, string message)
+		public void WriteFormat(string message, params string[] tokens)
 		{
-			if (_info_stream != null && _shouldLog(level))
-			{
-				lock (_write_lock)
-				{
-					_info_stream.WriteLine(Preamble(level) + message);
-					_info_stream.Flush();
-				}
-			}
+			_write_to_stream(_info_stream, _info_buffer, _info_write_lock, LogLevel.Standard, message, tokens);
 		}
 
-		/// <summary>
-		/// Write a message to the info log with a LogLevel of Standard.
-		/// </summary>
-		/// <param name="message_format"></param>
-		/// <param name="tokens"></param>
-		public void WriteFormat(string message_format, params string[] tokens)
+		public void Write(LogLevel level, string message)
 		{
-			WriteFormat(LogLevel.Standard, message_format, tokens);
+			_write_to_stream(_info_stream, _info_buffer, _info_write_lock, level, message);
 		}
 
-		/// <summary>
-		/// Write a message to the log with the given format and parameters.
-		/// </summary>
-		/// <param name="level"></param>
-		/// <param name="message_format"></param>
-		/// <param name="tokens"></param>
-		public void WriteFormat(LogLevel level, string message_format, params string[] tokens)
+		public void WriteFormat(LogLevel level, string message, params string[] tokens)
 		{
-			if (_info_stream != null && _shouldLog(level))
-			{
-				lock (_write_lock)
-				{
-					_info_stream.WriteLine(string.Format(Preamble(level) + message_format, tokens));
-					_info_stream.Flush();
-				}
-			}
+			_write_to_stream(_info_stream, _info_buffer, _info_write_lock, level, message, tokens);
 		}
 
-		/// <summary>
-		/// Write a message to the error log. LogLevel defaulted to Critical.
-		/// </summary>
-		/// <param name="message"></param>
 		public void WriteError(string message)
 		{
-			WriteError(LogLevel.Critical, message);
+			_write_to_stream(_error_stream, _error_buffer, _error_write_lock, LogLevel.Standard, message);
 		}
 
-		/// <summary>
-		/// Write a message to the error log.
-		/// </summary>
-		/// <param name="level"></param>
-		/// <param name="message"></param>
+		public void WriteErrorFormat(string message, params string[] tokens)
+		{
+			_write_to_stream(_error_stream, _error_buffer, _error_write_lock, LogLevel.Standard, message, tokens);
+		}
+
 		public void WriteError(LogLevel level, string message)
 		{
-			if (_error_stream != null && _shouldLog(level))
-			{
-				lock (_write_lock)
-				{
-					_error_stream.WriteLine(Preamble(level) + message);
-					_error_stream.Flush();
-				}
-			}
+			_write_to_stream(_error_stream, _error_buffer, _error_write_lock, level, message);
 		}
 
-		/// <summary>
-		/// Write an error to the error log with LogLevel of critical and with the given format and parameters.
-		/// </summary>
-		/// <param name="message_format"></param>
-		/// <param name="tokens"></param>
-		public void WriteErrorFormat(string message_format, params string[] tokens)
+		public void WriteErrorFormat(LogLevel level, string message, params string[] tokens)
 		{
-			WriteErrorFormat(LogLevel.Critical, message_format, tokens);
-		}
-
-		/// <summary>
-		/// Write an error to the error log with the given format and parameters.
-		/// </summary>
-		/// <param name="level"></param>
-		/// <param name="message_format"></param>
-		/// <param name="tokens"></param>
-		public void WriteErrorFormat(LogLevel level, string message_format, params string[] tokens)
-		{
-			if (_error_stream != null && _shouldLog(level))
-			{
-				lock (_write_lock)
-				{
-					_error_stream.WriteLine(string.Format(Preamble(level) + message_format, tokens));
-					_error_stream.Flush();
-				}
-			}
+			_write_to_stream(_error_stream, _error_buffer, _error_write_lock, level, message, tokens);
 		}
 
 		/// <summary>

@@ -73,5 +73,57 @@ namespace Chronometer.Test
 				Assert.True(text.Contains("dog"));
 			}
 		}
+
+		[Fact]
+		public void SuspendResume()
+		{
+			try
+			{
+				using (var trace = new Logger())
+				{
+					trace.InitializeWithPaths("temp1.log", "temp2.log");
+					trace.Write("test message.");
+					trace.WriteError("test error message.");
+
+					trace.SuspendAndBuffer();
+
+					Assert.True((new System.IO.FileInfo("temp1.log")).Length != 0);
+					Assert.True((new System.IO.FileInfo("temp2.log")).Length != 0);
+
+					if (File.Exists("temp1.log"))
+					{
+						File.Delete("temp1.log");
+					}
+
+					if (File.Exists("temp2.log"))
+					{
+						File.Delete("temp2.log");
+					}
+
+					trace.Write("hello.");
+					trace.WriteError("hello error");
+
+					Assert.Equal(2, trace.BufferedMessages);
+
+					trace.Resume();
+
+					Assert.True((new System.IO.FileInfo("temp1.log")).Length != 0);
+					Assert.True((new System.IO.FileInfo("temp2.log")).Length != 0);
+				}
+			}
+			finally
+			{
+				if (File.Exists("temp1.log"))
+				{
+					File.Delete("temp1.log");
+				}
+
+				if (File.Exists("temp2.log"))
+				{
+					File.Delete("temp2.log");
+				}
+
+			}
+		}
 	}
 }
