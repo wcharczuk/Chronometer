@@ -2,7 +2,7 @@
 <package xmlns="http://schemas.microsoft.com/packaging/2010/07/nuspec.xsd">
   <metadata schemaVersion="2">
     <id>Chronometer-Jobs</id>
-    <version>0.7.0</version>
+    <version>0.7.1</version>
     <authors>Will Charczuk</authors>
 	<owners>Will Charczuk</owners>    
     <projectUrl>https://github.com/wcharczuk/chronometer</projectUrl>
@@ -11,9 +11,10 @@
     <summary>Extensible background task runner and job scheduler for C#.</summary>
     <description>Extensible background task runner and job scheduler for C#. NOTE: In beta API's subject to breaking changes.</description>
     <releaseNotes>
-* 0.7.0			- Adds basic extensions for serialization.
-* 0.5.0-0.5.9	- Initial Beta Release.
-    </releaseNotes>
+		* 0.7.0			- Adds basic extensions for serialization.
+		* 0.6.0			- Adds log rotation.
+		* 0.5.0			- Initial Beta Release.
+	</releaseNotes>
     <copyright>Copyright Will Charczuk, 2015</copyright>
     <tags>job task background schedule scheduler</tags>
     <frameworkAssemblies>

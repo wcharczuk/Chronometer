@@ -46,6 +46,7 @@ namespace Chronometer
 		/// </summary>
 		public Logger()
 		{
+			this.AlwaysOutputToConsole = false;
 			this.LogLevel = LogLevel.Standard;
 		}
 
@@ -142,6 +143,8 @@ namespace Chronometer
 		private List<String> _error_buffer = new List<String>();
 		private bool _should_buffer = false;
 		
+		public bool AlwaysOutputToConsole { get; set; }
+
 		public int BufferedMessages
 		{
 			get
@@ -256,7 +259,13 @@ namespace Chronometer
 				lock (streamLock)
 				{
 					var fullMessage = string.Format(Preamble(level) + message, tokens);
-                    if (_should_buffer)
+
+					if (this.AlwaysOutputToConsole)
+					{
+						System.Console.WriteLine(String.Format(message, tokens));
+					}
+
+					if (_should_buffer)
 					{
 						lock (_transition_lock)
 						{
