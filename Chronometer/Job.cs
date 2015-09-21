@@ -9,6 +9,7 @@ namespace Chronometer
 	/// <summary>
 	/// Jobs are background tasks that run on a schedule.
 	/// </summary>
+	[Serializable]
 	public abstract class Job : IBackgroundTask
 	{
 		public const int TIMEOUT_MSEC = 60 * 60 * 1000;

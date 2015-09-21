@@ -6,12 +6,13 @@ using System.Text;
 using System.Collections.Concurrent;
 using System.Threading;
 using System.Threading.Tasks;
-using Chronometer.Extensions;
+using Chronometer.ExtensionMethods;
 using Chronometer.StatusModels;
 using Chronometer.Utility;
 
 namespace Chronometer
 {
+	[Serializable]
 	public class JobManager : IDisposable
 	{
 		#region Constants
@@ -136,6 +137,7 @@ namespace Chronometer
 
 		#region Heartbeat
 
+		[NonSerialized]
 		private Timer _heartbeat = null;
 
 		private static void HeartBeat(object state)
@@ -167,9 +169,9 @@ namespace Chronometer
 
 		#endregion
 
-				#region Private Storage
+		#region Private Storage
 
-			private DateTime? _runningSince = null;
+		private DateTime? _runningSince = null;
 		private ConcurrentDictionary<String, Job> _jobs { get; set; }
 		private ConcurrentDictionary<String, JobSchedule> _jobSchedules { get; set; }
 
@@ -199,6 +201,51 @@ namespace Chronometer
 			_runningJobStartTimes = new ConcurrentDictionary<String, DateTime?>();
 			_status = State.Off;
 			_useHighPrecisionHeartbeat = false;
+			Logger.Current.WriteFormat(LogLevel.Standard, "Job Manager initialized.");
+		}
+
+		/// <summary>
+		/// Initialize the job manager from another instance of a jobmanager.
+		/// </summary>
+		/// <param name="theOtherManager"></param>
+		private void _initializeFromExistingInstance(JobManager theOtherManager)
+		{
+			_jobs = new ConcurrentDictionary<String, Job>();
+			_jobSchedules = new ConcurrentDictionary<String, JobSchedule>();
+			_lastRunTimes = new ConcurrentDictionary<String, DateTime>();
+			_runCounts = new ConcurrentDictionary<String, Int32>();
+			_nextRunTimes = new ConcurrentDictionary<String, DateTime?>();
+			_runningJobs = new ConcurrentDictionary<String, Task>();
+			_runningJobCancellationTokens = new ConcurrentDictionary<String, CancellationTokenSource>();
+			_runningJobStartTimes = new ConcurrentDictionary<String, DateTime?>();
+
+			foreach (var job in theOtherManager._jobs)
+			{
+				this._jobs.TryAdd(job.Key, job.Value);
+			}
+
+			foreach(var schedule in theOtherManager._jobSchedules)
+			{
+				this._jobSchedules.TryAdd(schedule.Key, schedule.Value);
+			}
+
+			foreach(var lastRunTime in theOtherManager._lastRunTimes)
+			{
+				this._lastRunTimes.TryAdd(lastRunTime.Key, lastRunTime.Value);
+			}
+
+			foreach(var runCount in theOtherManager._runCounts)
+			{
+				this._runCounts.TryAdd(runCount.Key, runCount.Value);
+			}
+
+			foreach(var nextRunTime in theOtherManager._nextRunTimes)
+			{
+				this._nextRunTimes.TryAdd(nextRunTime.Key, nextRunTime.Value);
+			}
+
+			this._status = State.Off;
+			this._useHighPrecisionHeartbeat = theOtherManager._useHighPrecisionHeartbeat;
 			Logger.Current.WriteFormat(LogLevel.Standard, "Job Manager initialized.");
 		}
 
@@ -399,6 +446,12 @@ namespace Chronometer
 			}
 		}
 
+		/// <summary>
+		/// Figures out the next run time for a given schedule and adds it to the job ledger.
+		/// </summary>
+		/// <param name="jobId"></param>
+		/// <param name="schedule"></param>
+		/// <param name="lastRunTime"></param>
 		private void _queueNewRunTime(String jobId, JobSchedule schedule, DateTime lastRunTime)
 		{
 			var nextRunTime = schedule.GetNextRunTime(lastRunTime);
@@ -535,6 +588,56 @@ namespace Chronometer
 			}
 			return null;
 		}
+
+		#region Extensions
+
+		[NonSerialized]
+		private List<Interfaces.IJobManagerExtension> _extensions = new List<Interfaces.IJobManagerExtension>();
+
+		private IEnumerable<Interfaces.IJobManagerStateSerializer> _serializers
+		{
+			get
+			{
+				return _extensions.Where(_ => _ is Interfaces.IJobManagerStateSerializer).Select(_ => _ as Interfaces.IJobManagerStateSerializer);
+			}
+		}
+
+		public void AddExtension(Interfaces.IJobManagerExtension newExtension)
+		{
+			this._extensions.Add(newExtension);
+		}
+
+		#endregion
+
+		#region Serialization
+
+		public void Serialize()
+		{
+			this._serializeState();
+		}
+
+		private void _serializeState()
+		{
+			if (this._serializers.Any())
+			{
+				foreach (var serializer in this._serializers)
+				{
+					serializer.SerializeState(this);
+				}
+			}
+		}
+
+		public void Deserialize(Interfaces.IJobManagerStateSerializer serializer)
+		{
+			this._deserializeState(serializer);
+		}
+
+		private void _deserializeState(Interfaces.IJobManagerStateSerializer serializer)
+		{
+			serializer.DeserializeState(this._initializeFromExistingInstance);
+		}
+
+		#endregion
 
 		#region Private Helper Methods
 

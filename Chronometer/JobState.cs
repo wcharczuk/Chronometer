@@ -6,6 +6,7 @@ using System.Threading;
 
 namespace Chronometer
 {
+	[Serializable]
 	public class JobState
 	{
 		public String Id { get; set; }

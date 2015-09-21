@@ -5,9 +5,9 @@ using System.Linq;
 using System.Text;
 using Chronometer.Utility;
 
-namespace Chronometer.Extensions
+namespace Chronometer.ExtensionMethods
 {
-	public static class ConcurrentDictionaryExtensions
+	public static class ConcurrentDictionaryExtensionMethods
 	{
 		public static bool Remove<TKey, TValue>(this ConcurrentDictionary<TKey, TValue> dict, TKey key)
 		{

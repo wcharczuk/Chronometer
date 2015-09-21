@@ -57,6 +57,7 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="JobManagerExtension_Tests.cs" />
     <Compile Include="JobManager_Tests.cs" />
     <Compile Include="JobSchedule_Tests.cs" />
     <Compile Include="Mocks\MockDailyJob.cs" />

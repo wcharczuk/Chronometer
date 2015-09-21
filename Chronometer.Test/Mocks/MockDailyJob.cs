@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 
 namespace Chronometer.Test.Mocks
 {
+	[Serializable]
 	public class MockDailyJob : Job
 	{
 		public MockDailyJob() : base() { }
