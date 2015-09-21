@@ -74,5 +74,27 @@ namespace Chronometer.Test
 				}
 			}
 		}
+
+		[Fact]
+		public void TestBackgroundTaskSerialization()
+		{
+			var backingStore = new MemoryStream();
+			try
+			{
+				var bf = new System.Runtime.Serialization.Formatters.Binary.BinaryFormatter();
+				var backgroundTask = new BackgroundTask((token) =>
+				{
+					System.Threading.Thread.Sleep(1000);
+				});
+
+				bf.Serialize(backingStore, backgroundTask);
+				Assert.True(backingStore.Length != 0);
+			}
+			finally
+			{
+				backingStore.Close();
+				backingStore.Dispose();
+			}			
+		}
 	}
 }

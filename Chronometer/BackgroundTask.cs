@@ -42,7 +42,10 @@ namespace Chronometer
 		/// <summary>
 		/// The operation is what gets called by the Background Task Runner.
 		/// </summary>
-		public virtual Action<CancellationToken> Operation { get; set; }
+		public virtual Action<CancellationToken> Operation { get { return _operation; } set { _operation = value; } }
+
+		[NonSerialized]
+		private Action<CancellationToken> _operation = null;
 
 		/// <summary>
 		/// The relative progress of the task. On the interval 0 to 1.0, where 0.5 represents 50%
@@ -83,7 +86,7 @@ namespace Chronometer
 			if (handler != null)
 				handler(this, null);
 		}
-
+		
 		public virtual void OnComplete()
 		{
 			this.FinishedUTC = DateTime.UtcNow;
