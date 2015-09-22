@@ -327,41 +327,73 @@ namespace Chronometer
 
 		public virtual void Write(string message)
 		{
+			if (_output_to_console)
+			{
+				_write_to_stream(_console_info_stream, _info_buffer, _info_write_lock, LogLevel.Standard, message);
+			}
 			_write_to_stream(_info_stream, _info_buffer, _info_write_lock, LogLevel.Standard, message);
 		}
 
 		public virtual void WriteFormat(string message, params string[] tokens)
 		{
+			if (_output_to_console)
+			{
+				_write_to_stream(_console_info_stream, _info_buffer, _info_write_lock, LogLevel.Standard, message, tokens);
+			}
 			_write_to_stream(_info_stream, _info_buffer, _info_write_lock, LogLevel.Standard, message, tokens);
 		}
 
 		public virtual void Write(LogLevel level, string message)
 		{
+			if (_output_to_console)
+			{
+				_write_to_stream(_console_info_stream, _info_buffer, _info_write_lock, level, message);
+			}
 			_write_to_stream(_info_stream, _info_buffer, _info_write_lock, level, message);
 		}
 
 		public virtual void WriteFormat(LogLevel level, string message, params string[] tokens)
 		{
+			if (_output_to_console)
+			{
+				_write_to_stream(_console_info_stream, _info_buffer, _info_write_lock, level, message, tokens);
+			}
 			_write_to_stream(_info_stream, _info_buffer, _info_write_lock, level, message, tokens);
 		}
 
 		public virtual void WriteError(string message)
 		{
+			if (_output_to_console)
+			{
+				_write_to_stream(_console_error_stream, _error_buffer, _error_write_lock, LogLevel.Standard, message);
+			}
 			_write_to_stream(_error_stream, _error_buffer, _error_write_lock, LogLevel.Standard, message);
 		}
 
 		public virtual void WriteErrorFormat(string message, params string[] tokens)
 		{
+			if (_output_to_console)
+			{
+				_write_to_stream(_console_error_stream, _error_buffer, _error_write_lock, LogLevel.Standard, message, tokens);
+			}
 			_write_to_stream(_error_stream, _error_buffer, _error_write_lock, LogLevel.Standard, message, tokens);
 		}
 
 		public virtual void WriteError(LogLevel level, string message)
 		{
+			if (_output_to_console)
+			{
+				_write_to_stream(_console_error_stream, _error_buffer, _error_write_lock, level, message);
+			}
 			_write_to_stream(_error_stream, _error_buffer, _error_write_lock, level, message);
 		}
 
 		public virtual void WriteErrorFormat(LogLevel level, string message, params string[] tokens)
 		{
+			if (_output_to_console)
+			{
+				_write_to_stream(_console_error_stream, _error_buffer, _error_write_lock, level, message, tokens);
+			}
 			_write_to_stream(_error_stream, _error_buffer, _error_write_lock, level, message, tokens);
 		}
 
