@@ -20,7 +20,7 @@ namespace Chronometer
 		private static object _init_lock = new object();
 		private static Logger _current = null;
 
-		public const string RFC3339_UTC = "YYYY-MM-DD'T'HH:mm:ssZ";
+		public const string RFC3339_UTC = "yyyy-MM-dd'T'HH:mm:ssZ";
 
 		/// <summary>
 		/// A centralized singleton logger instance.
