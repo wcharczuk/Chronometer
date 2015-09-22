@@ -94,29 +94,63 @@ namespace Chronometer
 
 		public virtual bool AsyncTaskCompletion { get { return false; } }
 
-		public event BackgroundTaskEvent Start;
-		public event BackgroundTaskEvent Complete;
-		public event BackgroundTaskEvent Cancellation;
-		public event BackgroundTaskEvent Error;
-		public event BackgroundTaskEvent Timeout;
+		[NonSerialized]
+		BackgroundTaskEvent _start;
+		public event BackgroundTaskEvent Start
+		{
+			add { _start += value; }
+			remove { _start -= value; }
+		}
+
+		[NonSerialized]
+		BackgroundTaskEvent _complete;
+		public event BackgroundTaskEvent Complete
+		{
+			add { _complete += value; }
+			remove { _complete -= value; }
+		}
+
+		[NonSerialized]
+		BackgroundTaskEvent _cancellation;
+		public event BackgroundTaskEvent Cancellation
+		{
+			add { _cancellation += value; }
+			remove { _cancellation -= value; }
+		}
+
+		[NonSerialized]
+		BackgroundTaskEvent _error;
+		public event BackgroundTaskEvent Error
+		{
+			add { _error += value; }
+			remove { _error -= value; }
+		}
+
+		[NonSerialized]
+		BackgroundTaskEvent _timeout;
+		public event BackgroundTaskEvent Timeout
+		{
+			add { _timeout += value; }
+			remove { _timeout -= value; }
+		}
 
 		public void OnStart()
 		{
-			var handler = this.Start;
+			var handler = _start;
 			if (handler != null)
 				handler(this, null);
 		}
 
 		public void OnComplete()
 		{
-			var handler = this.Complete;
+			var handler = _complete;
 			if (handler != null)
 				handler(this, null);
 		}
 
 		public void OnCancellation()
 		{
-			var handler = this.Cancellation;
+			var handler = _cancellation;
 			if (handler != null)
 				handler(this, null);
 		}
@@ -128,14 +162,14 @@ namespace Chronometer
 				Logger.Current.Write(String.Format("Job '{0}' timed out.", this.Id));
 			}
 
-			var handler = this.Timeout;
+			var handler = _timeout;
 			if (handler != null)
 				handler(this, null);
 		}
 
 		public void OnError(Exception e)
 		{
-			var handler = this.Error;
+			var handler = _error;
 			if (handler != null)
 				handler(this, null);
 		}

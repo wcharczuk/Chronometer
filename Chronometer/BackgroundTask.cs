@@ -52,11 +52,45 @@ namespace Chronometer
 		/// </summary>
 		public virtual Double Progress { get { return 0.0; } }
 
-		public event BackgroundTaskEvent Start;
-		public event BackgroundTaskEvent Complete;
-		public event BackgroundTaskEvent Cancellation;
-		public event BackgroundTaskEvent Error;
-		public event BackgroundTaskEvent Timeout;
+		[NonSerialized]
+		BackgroundTaskEvent _start;
+		public event BackgroundTaskEvent Start
+		{
+			add { _start += value; }
+			remove { _start -= value;  }
+		}
+
+		[NonSerialized]
+		BackgroundTaskEvent _complete;
+		public event BackgroundTaskEvent Complete
+		{
+			add { _complete += value; }
+			remove { _complete -= value; }
+		}
+
+		[NonSerialized]
+		BackgroundTaskEvent _cancellation;
+		public event BackgroundTaskEvent Cancellation
+		{
+			add { _cancellation += value; }
+			remove { _cancellation -= value; }
+		}
+
+		[NonSerialized]
+		BackgroundTaskEvent _error;
+		public event BackgroundTaskEvent Error
+		{
+			add { _error += value; }
+			remove { _error -= value; }
+		}
+
+		[NonSerialized]
+		BackgroundTaskEvent _timeout;
+		public event BackgroundTaskEvent Timeout
+		{
+			add { _timeout += value; }
+			remove { _timeout -= value; }
+		}
 
 		public virtual String CreatedBy { get; set; }
 		public virtual DateTime CreatedUTC { get; set; }
@@ -82,7 +116,7 @@ namespace Chronometer
 		public virtual void OnStart()
 		{
 			this.CreatedUTC = DateTime.UtcNow;
-			var handler = this.Start;
+			var handler = _start;
 			if (handler != null)
 				handler(this, null);
 		}
@@ -90,14 +124,14 @@ namespace Chronometer
 		public virtual void OnComplete()
 		{
 			this.FinishedUTC = DateTime.UtcNow;
-			var handler = this.Complete;
+			var handler = _complete;
 			if (handler != null)
 				handler(this, null);
 		}
 
 		public virtual void OnCancellation()
 		{
-			var handler = this.Cancellation;
+			var handler = _cancellation;
 			if (handler != null)
 				handler(this, null);
 		}
@@ -105,7 +139,7 @@ namespace Chronometer
 		public virtual void OnTimeout(DateTime timedOutUtc)
 		{
 			this.TimedOutUTC = timedOutUtc;
-			var handler = this.Timeout;
+			var handler = _timeout;
 			if (handler != null)
 				handler(this, null);
 		}
@@ -113,7 +147,7 @@ namespace Chronometer
 		public virtual void OnError(Exception e)
 		{
 			this.Exception = e;
-			var handler = this.Error;
+			var handler = _error;
 			if (handler != null)
 				handler(this, null);
 		}
