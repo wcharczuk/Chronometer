@@ -78,11 +78,10 @@ namespace Chronometer.Test
 		[Fact]
 		public void TestBackgroundTaskSerialization()
 		{
-			using (var manager = new JobManager())
+			JobManager.Current.Initialize();
+			JobManager.Current.Start();
+			try
 			{
-				manager.Initialize();
-				manager.Start();
-
 				var backingStore = new MemoryStream();
 				try
 				{
@@ -92,7 +91,7 @@ namespace Chronometer.Test
 						System.Threading.Thread.Sleep(1000);
 					});
 
-					manager.RunBackgroundTask(backgroundTask);
+					JobManager.Current.RunBackgroundTask(backgroundTask);
 
 					bf.Serialize(backingStore, backgroundTask);
 					Assert.True(backingStore.Length != 0);
@@ -102,7 +101,12 @@ namespace Chronometer.Test
 					backingStore.Close();
 					backingStore.Dispose();
 				}
-			}			
-		}
+			}
+			finally
+			{
+				JobManager.Current.Standby();
+				JobManager.Current.Dispose();
+            }
+		}			
 	}
 }
