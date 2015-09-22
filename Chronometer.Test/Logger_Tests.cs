@@ -16,7 +16,7 @@ namespace Chronometer.Test
 			using (var trace = new Logger())
 			{
 				var buffer = new MemoryStream();
-				trace.InitializeWithStreams(buffer);
+				trace.OutputToStreams(buffer);
 				trace.Write("This is a test");
 
 				var text = System.Text.Encoding.Default.GetString(buffer.ToArray());
@@ -32,7 +32,7 @@ namespace Chronometer.Test
 			using (var trace = new Logger())
 			{
 				var buffer = new MemoryStream();
-				trace.InitializeWithStreams(buffer, buffer);
+				trace.OutputToStreams(buffer, buffer);
 				trace.WriteError("This is a test");
 
 				var text = System.Text.Encoding.Default.GetString(buffer.ToArray());
@@ -48,7 +48,7 @@ namespace Chronometer.Test
 			using (var trace = new Logger())
 			{
 				var buffer = new MemoryStream();
-				trace.InitializeWithStreams(buffer);
+				trace.OutputToStreams(buffer);
 				trace.WriteFormat("This is a {0}", "dog");
 
 				var text = System.Text.Encoding.Default.GetString(buffer.ToArray());
@@ -64,7 +64,7 @@ namespace Chronometer.Test
 			using (var trace = new Logger())
 			{
 				var buffer = new MemoryStream();
-				trace.InitializeWithStreams(buffer, buffer);
+				trace.OutputToStreams(buffer, buffer);
 				trace.WriteErrorFormat("This is a {0}", "dog");
 
 				var text = System.Text.Encoding.Default.GetString(buffer.ToArray());
@@ -77,27 +77,29 @@ namespace Chronometer.Test
 		[Fact]
 		public void SuspendResume()
 		{
+			var temp1 = Path.GetTempFileName();
+			var temp2 = Path.GetTempFileName();
 			try
 			{
 				using (var trace = new Logger())
 				{
-					trace.InitializeWithPaths("temp1.log", "temp2.log");
+					trace.OutputToFilePaths(temp1, temp2);
 					trace.Write("test message.");
 					trace.WriteError("test error message.");
 
 					trace.SuspendAndBuffer();
 
-					Assert.True((new System.IO.FileInfo("temp1.log")).Length != 0);
-					Assert.True((new System.IO.FileInfo("temp2.log")).Length != 0);
+					Assert.True((new System.IO.FileInfo(temp1)).Length != 0);
+					Assert.True((new System.IO.FileInfo(temp2)).Length != 0);
 
-					if (File.Exists("temp1.log"))
+					if (File.Exists(temp1))
 					{
-						File.Delete("temp1.log");
+						File.Delete(temp1);
 					}
 
-					if (File.Exists("temp2.log"))
+					if (File.Exists(temp2))
 					{
-						File.Delete("temp2.log");
+						File.Delete(temp2);
 					}
 
 					trace.Write("hello.");
@@ -107,20 +109,20 @@ namespace Chronometer.Test
 
 					trace.Resume();
 
-					Assert.True((new System.IO.FileInfo("temp1.log")).Length != 0);
-					Assert.True((new System.IO.FileInfo("temp2.log")).Length != 0);
+					Assert.True((new System.IO.FileInfo(temp1)).Length != 0);
+					Assert.True((new System.IO.FileInfo(temp2)).Length != 0);
 				}
 			}
 			finally
 			{
-				if (File.Exists("temp1.log"))
+				if (File.Exists(temp1))
 				{
-					File.Delete("temp1.log");
+					File.Delete(temp1);
 				}
 
-				if (File.Exists("temp2.log"))
+				if (File.Exists(temp2))
 				{
-					File.Delete("temp2.log");
+					File.Delete(temp2);
 				}
 
 			}

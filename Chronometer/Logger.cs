@@ -20,6 +20,8 @@ namespace Chronometer
 		private static object _init_lock = new object();
 		private static Logger _current = null;
 
+		public const string RFC3339_UTC = "YYYY-MM-DD'T'HH:mm:ssZ";
+
 		/// <summary>
 		/// A centralized singleton logger instance.
 		/// </summary>
@@ -46,21 +48,30 @@ namespace Chronometer
 		/// </summary>
 		public Logger()
 		{
-			this.AlwaysOutputToConsole = false;
 			this.LogLevel = LogLevel.Standard;
+		}
+
+		/// <summary>
+		/// The `AppName` label used in log message pre-ambles.
+		/// </summary>
+		public virtual String AppName
+		{
+			get
+			{
+				return "Chronometer";
+			}
 		}
 
 		/// <summary>
 		/// Initialize the logger with output to the console.
 		/// </summary>
-		public void InitializeWithConsole()
+		public virtual void OutputToConsole()
 		{
 			lock (_init_lock)
 			{
-				_initialized_false();
-				_initialized_from_console = true;
-				_info_stream = new StreamWriter(Console.OpenStandardOutput());
-				_error_stream = new StreamWriter(Console.OpenStandardError());
+				_output_to_console = true;
+				_console_info_stream = new StreamWriter(Console.OpenStandardOutput());
+				_console_error_stream = new StreamWriter(Console.OpenStandardError());
 			}
 		}
 
@@ -69,13 +80,11 @@ namespace Chronometer
 		/// </summary>
 		/// <param name="info_stream"></param>
 		/// <param name="error_stream"></param>
-		public void InitializeWithStreams(Stream info_stream, Stream error_stream = null)
+		public virtual void OutputToStreams(Stream info_stream, Stream error_stream = null)
 		{
 			lock (_init_lock)
 			{
-				_initialized_false();
-				_initialized_from_streams = true;
-
+				_can_resume_streams = false;
 				_info_stream = new StreamWriter(info_stream);
 
 				if (error_stream != null)
@@ -90,7 +99,7 @@ namespace Chronometer
 		/// </summary>
 		/// <param name="info_file_path"></param>
 		/// <param name="error_file_path"></param>
-		public void InitializeWithPaths(String info_file_path, String error_file_path = null)
+		public void OutputToFilePaths(String info_file_path, String error_file_path = null)
 		{
 			if (info_file_path.Equals(error_file_path))
 			{
@@ -99,8 +108,8 @@ namespace Chronometer
 
 			lock (_init_lock)
 			{
-				_initialized_false();
-                _initialized_from_paths = true;
+				_output_to_streams = true;
+                _can_resume_streams = true;
 				_info_path = info_file_path;
 				_error_path = error_file_path;
 
@@ -125,15 +134,9 @@ namespace Chronometer
 		/// </summary>
 		public LogLevel LogLevel { get; set; }
 
-		private void _initialized_false()
-		{
-			_initialized_from_console = false;
-			_initialized_from_paths = false;
-			_initialized_from_streams = false;
-		}
-		private bool _initialized_from_console = false;
-		private bool _initialized_from_streams = false;
-		private bool _initialized_from_paths = false;
+		private bool _output_to_console = false;
+		private bool _output_to_streams = false;
+		private bool _can_resume_streams = false;
 
 		private string _info_path = null;
 		private string _error_path = null;
@@ -142,8 +145,6 @@ namespace Chronometer
 		private List<String> _info_buffer = new List<String>();
 		private List<String> _error_buffer = new List<String>();
 		private bool _should_buffer = false;
-		
-		public bool AlwaysOutputToConsole { get; set; }
 
 		public int BufferedMessages
 		{
@@ -153,46 +154,62 @@ namespace Chronometer
 			}
 		}
 
-		private void _restore_streams()
+		protected void _restore_streams()
 		{
-			if (_initialized_from_console)
+			if (_output_to_console)
 			{
-				this.InitializeWithConsole();
+				this.OutputToConsole();
 			}
-			else if (_initialized_from_paths)
+
+			if (_output_to_streams)
 			{
-				this.InitializeWithPaths(this._info_path, this._error_path);
-			}
-			else if (_initialized_from_streams)
-			{
-				throw new InvalidOperationException("Cannot resume when initiailized from streams.");
+				if (_can_resume_streams)
+				{
+					this.OutputToFilePaths(this._info_path, this._error_path);
+				} 
+				else
+				{
+					throw new InvalidOperationException("Cannot resume when initiailized from streams.");
+				}	
 			}
 		}
 
-		private void _flush_buffer()
+		protected void _flush_buffers()
 		{
-			if (_info_stream != null)
+			foreach (var message in _info_buffer)
 			{
-				foreach (var message in _info_buffer)
+				if (_info_stream != null)
 				{
 					_info_stream.WriteLine(message);
 					_info_stream.Flush();
 				}
-				_info_buffer.Clear();
-			}
 
-			if (_error_stream != null)
+				if (_console_info_stream != null)
+				{
+					_console_info_stream.WriteLine(message);
+					_console_info_stream.Flush();
+				}
+			}
+			_info_buffer.Clear();
+
+			foreach (var message in _error_buffer)
 			{
-				foreach (var message in _error_buffer)
+				if (_error_stream != null)
 				{
 					_error_stream.WriteLine(message);
 					_error_stream.Flush();
 				}
-				_error_buffer.Clear();
+
+				if (_console_error_stream != null)
+				{
+					_console_error_stream.WriteLine(message);
+					_console_error_stream.Flush();
+				}
 			}
+			_error_buffer.Clear();
 		}
 
-		private void _suspend_streams()
+		protected void _suspend_streams()
 		{
 			if (_info_stream != null)
 			{
@@ -201,17 +218,31 @@ namespace Chronometer
 				_info_stream = null;
 			}
 
+			if (_console_info_stream != null)
+			{
+				_console_info_stream.Flush();
+				_console_info_stream.Dispose();
+				_console_info_stream = null;
+			}
+
 			if (_error_stream != null)
 			{
 				_error_stream.Flush();
 				_error_stream.Dispose();
 				_error_stream = null;
 			}
+
+			if (_console_error_stream != null)
+			{
+				_console_error_stream.Flush();
+				_console_error_stream.Dispose();
+				_console_error_stream = null;
+			}
 		}
 
-		public void SuspendAndBuffer()
+		public virtual void SuspendAndBuffer()
 		{
-			if (_initialized_from_streams)
+			if (!_can_resume_streams)
 			{
 				throw new InvalidOperationException("Cannot resume when initiailized from streams.");
 			}
@@ -222,25 +253,29 @@ namespace Chronometer
 				_should_buffer = true;
 			}
 		}
-		
-		public void Resume()
+
+		public virtual void Resume()
 		{
 			lock(_transition_lock)
 			{
 				_restore_streams();
 				_should_buffer = false;
-				_flush_buffer();
+				_flush_buffers();
 			}
 		}
 
-		private bool _shouldLog(LogLevel givenLevel)
+		protected bool _shouldLog(LogLevel givenLevel)
 		{
 			return (int)this.LogLevel >= (int)givenLevel;
 		}
-		private StreamWriter _error_stream = null;
-		private StreamWriter _info_stream = null;
-		private object _info_write_lock = new object();
-		private object _error_write_lock = new object();
+		protected StreamWriter _error_stream = null;
+		protected StreamWriter _info_stream = null;
+
+		protected StreamWriter _console_error_stream = null;
+		protected StreamWriter _console_info_stream = null;
+
+		protected object _info_write_lock = new object();
+		protected object _error_write_lock = new object();
 
 		/// <summary>
 		/// The prefix used when writing message to the log.
@@ -249,21 +284,16 @@ namespace Chronometer
 		/// <returns></returns>
 		protected virtual string Preamble(LogLevel level)
 		{
-			return String.Format("{0} Chronometer ({1}) :: ", DateTime.UtcNow.ToString("yyyy/MM/dd HH:mm:ss.fff"), level);
+			return String.Format("{0} {1} ({2}) :: ", DateTime.UtcNow.ToString(RFC3339_UTC), this.AppName, level);
         }
 
-		private void _write_to_stream(StreamWriter outputStream, List<String> buffer, object streamLock, LogLevel level, string message, params string[] tokens)
+		protected void _write_to_stream(StreamWriter outputStream, List<String> buffer, object streamLock, LogLevel level, string message, params string[] tokens)
 		{
 			if (_shouldLog(level))
 			{
 				lock (streamLock)
 				{
 					var fullMessage = string.Format(Preamble(level) + message, tokens);
-
-					if (this.AlwaysOutputToConsole)
-					{
-						System.Console.WriteLine(String.Format(message, tokens));
-					}
 
 					if (_should_buffer)
 					{
@@ -295,42 +325,42 @@ namespace Chronometer
 			}
 		}
 
-		public void Write(string message)
+		public virtual void Write(string message)
 		{
 			_write_to_stream(_info_stream, _info_buffer, _info_write_lock, LogLevel.Standard, message);
 		}
 
-		public void WriteFormat(string message, params string[] tokens)
+		public virtual void WriteFormat(string message, params string[] tokens)
 		{
 			_write_to_stream(_info_stream, _info_buffer, _info_write_lock, LogLevel.Standard, message, tokens);
 		}
 
-		public void Write(LogLevel level, string message)
+		public virtual void Write(LogLevel level, string message)
 		{
 			_write_to_stream(_info_stream, _info_buffer, _info_write_lock, level, message);
 		}
 
-		public void WriteFormat(LogLevel level, string message, params string[] tokens)
+		public virtual void WriteFormat(LogLevel level, string message, params string[] tokens)
 		{
 			_write_to_stream(_info_stream, _info_buffer, _info_write_lock, level, message, tokens);
 		}
 
-		public void WriteError(string message)
+		public virtual void WriteError(string message)
 		{
 			_write_to_stream(_error_stream, _error_buffer, _error_write_lock, LogLevel.Standard, message);
 		}
 
-		public void WriteErrorFormat(string message, params string[] tokens)
+		public virtual void WriteErrorFormat(string message, params string[] tokens)
 		{
 			_write_to_stream(_error_stream, _error_buffer, _error_write_lock, LogLevel.Standard, message, tokens);
 		}
 
-		public void WriteError(LogLevel level, string message)
+		public virtual void WriteError(LogLevel level, string message)
 		{
 			_write_to_stream(_error_stream, _error_buffer, _error_write_lock, level, message);
 		}
 
-		public void WriteErrorFormat(LogLevel level, string message, params string[] tokens)
+		public virtual void WriteErrorFormat(LogLevel level, string message, params string[] tokens)
 		{
 			_write_to_stream(_error_stream, _error_buffer, _error_write_lock, level, message, tokens);
 		}
@@ -338,7 +368,7 @@ namespace Chronometer
 		/// <summary>
 		/// Dispose the logger, releasing stream writers.
 		/// </summary>
-		public void Dispose()
+		public virtual void Dispose()
 		{
 			if (_info_stream != null)
 			{
